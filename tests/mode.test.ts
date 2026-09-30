@@ -24,6 +24,7 @@ describe("detectMode", () => {
     expect(REASON_TEXT["cli-disabled"]).toBe(
       "Turn on Settings → General → Advanced → Command line interface in Obsidian, then restart Obsidian.",
     );
+    expect(REASON_TEXT["quickadd-old"]).toBe("QuickAdd isn't enabled in this vault, or is older than 2.27.");
     expect(isBasicReason("quickadd-old")).toBe(true);
     expect(isBasicReason("timeout")).toBe(false);
   });

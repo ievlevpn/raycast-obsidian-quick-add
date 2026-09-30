@@ -7,6 +7,8 @@ import {
   OBSIDIAN_PROMPTS_NOTE,
   QUICKADD_DATA,
   findQuickAddVaults,
+  isAmbiguousVault,
+  registeredVaultPaths,
   loadChoices,
   vaultName,
 } from "../src/config";
@@ -60,6 +62,21 @@ describe("findQuickAddVaults", () => {
     const json = join(mkdtempSync(join(tmpdir(), "qa-obs-")), "obsidian.json");
     write(json, "{not json");
     expect(findQuickAddVaults(json)).toEqual([]);
+  });
+});
+
+describe("vault names Obsidian can't tell apart", () => {
+  it("lists every registered vault and flags ones sharing a folder name", () => {
+    const json = join(mkdtempSync(join(tmpdir(), "qa-obs-")), "obsidian.json");
+    write(
+      json,
+      JSON.stringify({ vaults: { a: { path: "/x/notes" }, b: { path: "/y/notes/" }, c: { path: "/z/work" }, d: {} } }),
+    );
+    const registered = registeredVaultPaths(json);
+    expect(registered).toEqual(["/x/notes", "/y/notes", "/z/work"]);
+    expect(isAmbiguousVault("/x/notes", registered)).toBe(true);
+    expect(isAmbiguousVault("/z/work/", registered)).toBe(false);
+    expect(registeredVaultPaths("/nonexistent/obsidian.json")).toEqual([]);
   });
 });
 

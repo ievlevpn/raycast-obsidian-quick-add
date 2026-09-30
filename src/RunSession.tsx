@@ -1,4 +1,16 @@
-import { ActionPanel, Detail, Icon, popToRoot, PopToRootType, showHUD, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  closeMainWindow,
+  Detail,
+  Icon,
+  Keyboard,
+  popToRoot,
+  PopToRootType,
+  showHUD,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { createDeeplink } from "@raycast/utils";
 import { useEffect, useRef, useState } from "react";
 import ChoiceForm from "./ChoiceForm";
@@ -11,7 +23,7 @@ import MessagePrompt from "./prompts/MessagePrompt";
 import SuggesterPrompt from "./prompts/SuggesterPrompt";
 import { messageMarkdown, promptTitle, replyForForm, specsForPrompt, unsupportedMarkdown } from "./replies";
 import { runChoice } from "./run";
-import { doneMessage, InteractiveSession, PromptEvent, SessionEvent, startSession } from "./session";
+import { doneMessage, InteractiveSession, PromptEvent, SessionEvent, startSession, withoutPrompt } from "./session";
 import { Choice } from "./types";
 import { buildOpenUri } from "./uri";
 
@@ -27,9 +39,13 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
   const [prompts, setPrompts] = useState<PromptEvent[]>([]);
   const session = useRef<InteractiveSession | undefined>(undefined);
+  const unmounted = useRef(false);
+  const answered = useRef(new Set<string>());
+  const [slow, setSlow] = useState(false);
 
   function fail(reason: string, message: string) {
     void session.current?.abort();
+    if (unmounted.current) return;
     if (isBasicReason(reason)) {
       setPhase({ kind: "basic", reason });
       return;
@@ -44,22 +60,32 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       return;
     }
     if (event.kind === "done") {
-      if (choice.openFile && event.result.file) await openUri(buildOpenUri(vaultName, event.result.file));
+      if (choice.openFile && event.result.file) {
+        try {
+          await openUri(buildOpenUri(vaultName, event.result.file));
+        } catch (error) {
+          await showToast({
+            style: Toast.Style.Failure,
+            title: `${doneMessage(choice.name, event.result)}, but it couldn't be opened`,
+            message: String(error),
+          });
+          return;
+        }
+      }
       await showHUD(doneMessage(choice.name, event.result), { popToRootType: PopToRootType.Immediate });
       return;
     }
     if (/cancelled by user/i.test(event.error)) {
-      await popToRoot();
+      await close();
       return;
     }
     fail("quickadd-error", event.error);
   }
 
   useEffect(() => {
-    let unmounted = false;
     (async () => {
       const ready = await ensureVaultReady(choice.id, realVaultDeps(cli, vaultName, vaultPath));
-      if (unmounted) return;
+      if (unmounted.current) return;
       if (!ready.ok) return fail(ready.reason, ready.message);
       if (ready.opened && !relaunched) {
         // Opening the vault brought Obsidian forward and hid Raycast. A command can't launchCommand
@@ -73,20 +99,30 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       const started = await startSession(cli, vaultName, choice.id);
       if (!started.ok) return fail(started.reason, started.message);
       session.current = started.session;
-      if (unmounted) return started.session.abort();
+      if (unmounted.current) return started.session.abort();
       setPhase({ kind: "waiting" });
       await started.session.pollLoop((event) => {
-        if (!unmounted) void handle(event);
+        if (!unmounted.current) void handle(event);
       });
     })().catch((error) => fail("unknown", String(error)));
     return () => {
-      unmounted = true;
+      unmounted.current = true;
       void session.current?.abort();
     };
   }, []);
 
+  // After a few seconds with nothing to show, QuickAdd is probably asking something in Obsidian itself.
+  useEffect(() => {
+    setSlow(false);
+    if (phase.kind !== "waiting" || prompts.length > 0) return;
+    const timer = setTimeout(() => setSlow(true), 3000);
+    return () => clearTimeout(timer);
+  }, [phase.kind, prompts.length]);
+
   async function answer(event: PromptEvent, value: unknown) {
-    setPrompts((queue) => queue.slice(1));
+    if (answered.current.has(event.requestId)) return;
+    answered.current.add(event.requestId);
+    setPrompts((queue) => withoutPrompt(queue, event.requestId));
     try {
       await session.current?.reply(event.requestId, value);
     } catch (error) {
@@ -94,9 +130,15 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
     }
   }
 
+  /** Close Raycast; popToRoot alone leaves an empty window when this view is the root (quicklink). */
+  async function close() {
+    await closeMainWindow({ clearRootSearch: true });
+    await popToRoot();
+  }
+
   async function cancel() {
     await session.current?.abort();
-    await popToRoot();
+    await close();
   }
 
   if (phase.kind === "basic") return <BasicFallback vaultName={vaultName} choice={choice} reason={phase.reason} />;
@@ -110,9 +152,23 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       <Detail
         isLoading
         navigationTitle={choice.title}
-        markdown={phase.kind === "starting" ? "Starting QuickAdd…" : "Waiting for QuickAdd…"}
+        markdown={
+          phase.kind === "starting"
+            ? "Starting QuickAdd…"
+            : slow
+              ? "Waiting for QuickAdd…\n\nQuickAdd may be asking something in Obsidian itself (for example a Templater prompt). Answer it there, or cancel the run."
+              : "Waiting for QuickAdd…"
+        }
         actions={
           <ActionPanel>
+            {slow ? (
+              <Action
+                title="Open Obsidian"
+                icon={Icon.AppWindow}
+                shortcut={Keyboard.Shortcut.Common.Open}
+                onAction={() => openUri(buildOpenUri(vaultName))}
+              />
+            ) : null}
             <CancelAction onCancel={cancel} />
           </ActionPanel>
         }

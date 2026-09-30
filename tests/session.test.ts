@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { doneMessage, InteractiveSession, SessionEvent, startSession } from "../src/session";
+import { doneMessage, InteractiveSession, PromptEvent, SessionEvent, startSession, withoutPrompt } from "../src/session";
 import { fakeCli, sq } from "./helpers/fakeCli";
 import { FakeQuickAdd, startFakeQuickAdd } from "./helpers/fakeQuickAdd";
 
@@ -160,5 +160,13 @@ describe("doneMessage", () => {
     expect(doneMessage("Thought", { effect: "changed", file: "Inbox.md" })).toBe("Added to Inbox.md");
     expect(doneMessage("Person", { effect: "created", file: "People/A.md" })).toBe("Created People/A.md");
     expect(doneMessage("Macro", { effect: "unknown" })).toBe("Ran Macro");
+  });
+});
+
+describe("withoutPrompt", () => {
+  it("removes the answered prompt by request id, and nothing else", () => {
+    const p = (requestId: string): PromptEvent => ({ kind: "prompt", requestId, prompt: { type: "input" } });
+    expect(withoutPrompt([p("a"), p("b")], "b").map((e) => e.requestId)).toEqual(["a"]);
+    expect(withoutPrompt([p("a")], "zzz").map((e) => e.requestId)).toEqual(["a"]);
   });
 });

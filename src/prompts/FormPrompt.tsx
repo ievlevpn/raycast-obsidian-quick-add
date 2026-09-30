@@ -67,6 +67,7 @@ function renderField(spec: FieldSpec, index: number, error: string | undefined, 
     case "dropdown":
       return [
         <Form.Dropdown key={id} {...common} defaultValue={dropdownDefault(spec)}>
+          {spec.optional ? <Form.Dropdown.Item key="none" value="" title="—" /> : null}
           {(spec.options ?? []).map((option) => (
             <Form.Dropdown.Item key={option.value} value={option.value} title={option.title} />
           ))}

@@ -5,7 +5,7 @@ export type BasicReason = "no-cli" | "cli-disabled" | "quickadd-old";
 export const REASON_TEXT: Record<BasicReason, string> = {
   "no-cli": "Update Obsidian to 1.12 or later for full QuickAdd support.",
   "cli-disabled": "Turn on Settings → General → Advanced → Command line interface in Obsidian, then restart Obsidian.",
-  "quickadd-old": "Update the QuickAdd plugin to 2.27 or later for full support.",
+  "quickadd-old": "QuickAdd isn't enabled in this vault, or is older than 2.27.",
 };
 
 export type Mode = { mode: "full"; cli: string } | { mode: "basic"; reason: BasicReason };

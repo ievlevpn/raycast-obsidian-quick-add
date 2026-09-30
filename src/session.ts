@@ -119,6 +119,11 @@ export async function startSession(cli: string, vaultName: string, choiceId: str
   };
 }
 
+/** The prompt queue without the prompt that was just answered. */
+export function withoutPrompt(queue: PromptEvent[], requestId: string): PromptEvent[] {
+  return queue.filter((event) => event.requestId !== requestId);
+}
+
 export function doneMessage(choiceName: string, result: DoneResult): string {
   if (result.file && result.effect === "created") return `Created ${result.file}`;
   if (result.file && result.effect === "changed") return `Added to ${result.file}`;

@@ -157,9 +157,13 @@ export function specsForPrompt(prompt: QaPrompt): FieldSpec[] | undefined {
 }
 
 export function dateReply(date: Date, withTime: boolean): string {
-  if (withTime) return `@date:${date.toISOString()}`;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `@date:${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  if (!withTime) return `@date:${day}`;
+  // Local wall-clock time with its UTC offset, so QuickAdd formats the time the user picked.
+  const offset = -date.getTimezoneOffset();
+  const zone = `${offset >= 0 ? "+" : "-"}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`;
+  return `@date:${day}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${zone}`;
 }
 
 export function fieldValue(spec: FieldSpec, values: FormValues, index: number): string | string[] {
@@ -208,9 +212,11 @@ export function replyForForm(prompt: QaPrompt, specs: FieldSpec[], values: FormV
   }
 }
 
+/** Optional dropdowns start on "no value" ("") unless QuickAdd gave a default. */
 export function dropdownDefault(spec: FieldSpec): string | undefined {
   const wanted = typeof spec.defaultValue === "string" ? spec.defaultValue : undefined;
-  return spec.options?.some((option) => option.value === wanted) ? wanted : spec.options?.[0]?.value;
+  if (spec.options?.some((option) => option.value === wanted)) return wanted;
+  return spec.optional ? "" : spec.options?.[0]?.value;
 }
 
 export function dateDefault(value: unknown): Date | undefined {

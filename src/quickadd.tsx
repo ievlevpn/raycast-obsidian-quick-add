@@ -15,7 +15,14 @@ import { basename } from "path";
 import { useEffect, useMemo, useState } from "react";
 import ChoiceForm from "./ChoiceForm";
 import { findCli, readRegistry } from "./cli";
-import { ConfigError, findQuickAddVaults, loadChoices, vaultName } from "./config";
+import {
+  ConfigError,
+  findQuickAddVaults,
+  isAmbiguousVault,
+  loadChoices,
+  registeredVaultPaths,
+  vaultName,
+} from "./config";
 import { detectMode, REASON_TEXT } from "./mode";
 import { runChoice } from "./run";
 import RunSession from "./RunSession";
@@ -28,6 +35,7 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
   const { vaultPath: preferredPath, cliPath } = getPreferenceValues<Preferences>();
   const vaults = useMemo(() => (preferredPath ? [preferredPath] : findQuickAddVaults()), [preferredPath]);
   const target = context.vaultPath ?? (vaults.length === 1 ? vaults[0] : undefined);
+  const registered = useMemo(() => registeredVaultPaths(), []);
 
   if (target)
     return <Choices vaultPath={target} choiceId={context.choiceId} cliPath={cliPath} relaunched={context.relaunched} />;
@@ -44,6 +52,9 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
           title={basename(path)}
           subtitle={path}
           icon={Icon.Folder}
+          accessories={
+            isAmbiguousVault(path, registered) ? [{ tag: "Same name as another vault", icon: Icon.Warning }] : []
+          }
           actions={
             <ActionPanel>
               <Action.Push
@@ -73,6 +84,12 @@ function Choices({
   const [checks, setChecks] = useState(0);
   const mode = useMemo(() => detectMode(findCli(cliPath || undefined), readRegistry()), [cliPath, checks]);
   const loaded = useMemo((): { choices: Choice[]; error?: string } => {
+    if (isAmbiguousVault(vaultPath, registeredVaultPaths())) {
+      return {
+        choices: [],
+        error: `Another Obsidian vault is also named “${vaultName(vaultPath)}”. Obsidian can't tell them apart, so QuickAdd can't be run safely here. Rename one of the vault folders.`,
+      };
+    }
     try {
       return { choices: loadChoices(vaultPath) };
     } catch (error) {

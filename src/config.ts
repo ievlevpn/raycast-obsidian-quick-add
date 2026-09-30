@@ -22,6 +22,28 @@ export function findQuickAddVaults(obsidianJsonPath = DEFAULT_OBSIDIAN_JSON): st
     .filter((path): path is string => typeof path === "string" && existsSync(join(path, QUICKADD_DATA)));
 }
 
+/** Every vault registered with Obsidian, QuickAdd or not. */
+export function registeredVaultPaths(obsidianJsonPath = DEFAULT_OBSIDIAN_JSON): string[] {
+  try {
+    const registry = JSON.parse(readFileSync(obsidianJsonPath, "utf8")) as {
+      vaults?: Record<string, { path?: unknown }>;
+    };
+    return Object.values(registry.vaults ?? {})
+      .map((vault) => vault.path)
+      .filter((path): path is string => typeof path === "string")
+      .map((path) => path.replace(/\/+$/, ""));
+  } catch {
+    return [];
+  }
+}
+
+/** Obsidian's URIs and CLI address vaults by folder name, so two vaults with the same name are ambiguous. */
+export function isAmbiguousVault(vaultPath: string, registered: string[]): boolean {
+  const name = vaultName(vaultPath);
+  const self = vaultPath.replace(/\/+$/, "");
+  return registered.some((path) => path !== self && vaultName(path) === name);
+}
+
 export function vaultName(vaultPath: string): string {
   return basename(vaultPath.replace(/\/+$/, ""));
 }
