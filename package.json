@@ -5,9 +5,13 @@
   "description": "Run Obsidian QuickAdd choices from Raycast, filling their prompts in Raycast",
   "icon": "extension-icon.png",
   "author": "ievlevpn",
-  "categories": ["Productivity"],
+  "categories": [
+    "Productivity"
+  ],
   "license": "MIT",
-  "platforms": ["macOS"],
+  "platforms": [
+    "macOS"
+  ],
   "commands": [
     {
       "name": "quickadd",
@@ -23,6 +27,13 @@
       "title": "Vault Folder",
       "description": "Obsidian vault that has QuickAdd installed. Leave empty to detect it automatically.",
       "type": "directory",
+      "required": false
+    },
+    {
+      "name": "cliPath",
+      "title": "Obsidian CLI",
+      "description": "Path to obsidian-cli. Leave empty to use the one inside the Obsidian app.",
+      "type": "file",
       "required": false
     }
   ],

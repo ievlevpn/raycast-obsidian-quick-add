@@ -12,21 +12,24 @@ import {
 } from "@raycast/api";
 import { createDeeplink, useFrecencySorting } from "@raycast/utils";
 import { basename } from "path";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ChoiceForm from "./ChoiceForm";
+import { findCli, readRegistry } from "./cli";
 import { ConfigError, findQuickAddVaults, loadChoices, vaultName } from "./config";
+import { detectMode, REASON_TEXT } from "./mode";
 import { runChoice } from "./run";
+import RunSession from "./RunSession";
 import { Choice } from "./types";
 
 type LaunchContext = { vaultPath?: string; choiceId?: string };
 
 export default function Command(props: LaunchProps<{ launchContext?: LaunchContext }>) {
   const context = props.launchContext ?? {};
-  const { vaultPath: preferredPath } = getPreferenceValues<Preferences>();
+  const { vaultPath: preferredPath, cliPath } = getPreferenceValues<Preferences>();
   const vaults = useMemo(() => (preferredPath ? [preferredPath] : findQuickAddVaults()), [preferredPath]);
   const target = context.vaultPath ?? (vaults.length === 1 ? vaults[0] : undefined);
 
-  if (target) return <Choices vaultPath={target} choiceId={context.choiceId} />;
+  if (target) return <Choices vaultPath={target} choiceId={context.choiceId} cliPath={cliPath} />;
   if (vaults.length === 0) {
     return (
       <ErrorView message="No Obsidian vault with QuickAdd was found. Set the vault folder in the extension preferences." />
@@ -42,7 +45,11 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
           icon={Icon.Folder}
           actions={
             <ActionPanel>
-              <Action.Push title="Open Vault" icon={Icon.ArrowRight} target={<Choices vaultPath={path} />} />
+              <Action.Push
+                title="Open Vault"
+                icon={Icon.ArrowRight}
+                target={<Choices vaultPath={path} cliPath={cliPath} />}
+              />
             </ActionPanel>
           }
         />
@@ -51,7 +58,9 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
   );
 }
 
-function Choices({ vaultPath, choiceId }: { vaultPath: string; choiceId?: string }) {
+function Choices({ vaultPath, choiceId, cliPath }: { vaultPath: string; choiceId?: string; cliPath?: string }) {
+  const [checks, setChecks] = useState(0);
+  const mode = useMemo(() => detectMode(findCli(cliPath || undefined), readRegistry()), [cliPath, checks]);
   const loaded = useMemo((): { choices: Choice[]; error?: string } => {
     try {
       return { choices: loadChoices(vaultPath) };
@@ -66,52 +75,89 @@ function Choices({ vaultPath, choiceId }: { vaultPath: string; choiceId?: string
   useEffect(() => {
     if (!choiceId || loaded.error) return;
     if (!direct) showToast({ style: Toast.Style.Failure, title: "Choice no longer exists" });
-    else if (direct.fields.length === 0) runChoice(name, direct, []);
+    else if (mode.mode === "basic" && direct.fields.length === 0) runChoice(name, direct, []);
   }, []);
 
   if (loaded.error) return <ErrorView message={loaded.error} />;
-  if (direct && direct.fields.length > 0) return <ChoiceForm vaultName={name} choice={direct} />;
-  if (direct) return <List isLoading />;
+  if (direct) {
+    if (mode.mode === "full")
+      return <RunSession cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={direct} />;
+    if (direct.fields.length > 0) return <ChoiceForm vaultName={name} choice={direct} />;
+    return <List isLoading />;
+  }
+
+  const primaryAction = (choice: Choice) => {
+    if (mode.mode === "full") {
+      return (
+        <Action.Push
+          title="Run"
+          icon={Icon.Play}
+          target={<RunSession cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={choice} />}
+          onPush={() => visitItem(choice)}
+        />
+      );
+    }
+    if (choice.fields.length > 0) {
+      return (
+        <Action.Push
+          title="Fill in"
+          icon={Icon.Pencil}
+          target={<ChoiceForm vaultName={name} choice={choice} />}
+          onPush={() => visitItem(choice)}
+        />
+      );
+    }
+    return (
+      <Action
+        title="Run"
+        icon={Icon.Play}
+        onAction={() => {
+          visitItem(choice);
+          runChoice(name, choice, []);
+        }}
+      />
+    );
+  };
 
   return (
     <List searchBarPlaceholder="Search QuickAdd choices">
-      {sorted.map((choice) => (
-        <List.Item
-          key={choice.id}
-          title={choice.title}
-          icon={choice.type === "Capture" ? Icon.Plus : Icon.Document}
-          accessories={[{ tag: choice.type }]}
-          actions={
-            <ActionPanel>
-              {choice.fields.length > 0 ? (
-                <Action.Push
-                  title="Fill in"
-                  icon={Icon.Pencil}
-                  target={<ChoiceForm vaultName={name} choice={choice} />}
-                  onPush={() => visitItem(choice)}
-                />
-              ) : (
-                <Action
-                  title="Run"
-                  icon={Icon.Play}
-                  onAction={() => {
-                    visitItem(choice);
-                    runChoice(name, choice, []);
+      {mode.mode === "basic" ? (
+        <List.Section title="Basic Mode">
+          <List.Item
+            title="Full QuickAdd support is off"
+            subtitle={REASON_TEXT[mode.reason]}
+            icon={Icon.Warning}
+            actions={
+              <ActionPanel>
+                <Action title="Check Again" icon={Icon.ArrowClockwise} onAction={() => setChecks((n) => n + 1)} />
+              </ActionPanel>
+            }
+          />
+        </List.Section>
+      ) : null}
+      <List.Section title="Choices">
+        {sorted.map((choice) => (
+          <List.Item
+            key={choice.id}
+            title={choice.title}
+            icon={choice.type === "Capture" ? Icon.Plus : Icon.Document}
+            accessories={[{ tag: choice.type }]}
+            actions={
+              <ActionPanel>
+                {primaryAction(choice)}
+                <Action.CreateQuicklink
+                  title="Create Quicklink"
+                  shortcut={{ modifiers: ["cmd", "shift"], key: "q" }}
+                  quicklink={{
+                    name: `QuickAdd: ${choice.name}`,
+                    link: createDeeplink({ command: "quickadd", context: { vaultPath, choiceId: choice.id } }),
                   }}
                 />
-              )}
-              <Action.CreateQuicklink
-                title="Create Quicklink"
-                shortcut={{ modifiers: ["cmd", "shift"], key: "q" }}
-                quicklink={{
-                  name: `QuickAdd: ${choice.name}`,
-                  link: createDeeplink({ command: "quickadd", context: { vaultPath, choiceId: choice.id } }),
-                }}
-              />
-            </ActionPanel>
-          }
-        />
-      ))}
+              </ActionPanel>
+            }
+          />
+        ))}
+      </List.Section>
     </List>
   );
 }

@@ -2,13 +2,22 @@
 
 Run your [QuickAdd](https://github.com/chhoumann/quickadd) choices from Raycast.
 
-- Every `{{VALUE}}` / `{{VALUE:name}}` prompt — in the capture format, the file-name format, or the template file — is asked in a Raycast form.
-- Captures run with Obsidian in the background; templates open the new note in Obsidian.
+- Answer whatever the choice asks — text, forms, pickers, dates, confirmations — in Raycast (full mode, below).
+- Captures run with Obsidian in the background; choices set to open their note bring Obsidian forward.
 - New and changed choices show up automatically; the extension reads QuickAdd's settings each time it opens.
+
+## Full and basic mode
+
+**Full mode** (recommended) runs choices through QuickAdd's interactive command-line interface. Everything QuickAdd asks — text, one-page forms, suggesters and file pickers, multi-selects, checkboxes, dates, confirmations — is answered in Raycast. It needs:
+
+- Obsidian 1.12 or later, with **Settings → General → Advanced → Command line interface** turned on (restart Obsidian afterwards).
+- QuickAdd 2.27 or later.
+
+If any of these is missing, the extension uses **basic mode**: it fills `{{VALUE}}` placeholders from the choice's format, file name and template in a Raycast form and sends them through QuickAdd's `obsidian://quickadd` link. Anything else QuickAdd asks then appears in Obsidian. The choice list says why basic mode is on.
 
 ## Requirements
 
-- Obsidian with the QuickAdd plugin (tested with 2.27). Obsidian must be running or able to launch.
+- Obsidian with the QuickAdd plugin. Obsidian is started if it isn't running.
 
 ## Setup
 
@@ -20,6 +29,6 @@ Select a choice, press `⌘⇧Q` (**Create Quicklink**), and save. In Raycast se
 
 ## Limitations
 
-- Templater prompts, `{{VDATE}}`, `{{FIELD}}`, macros, and file or folder pickers are still asked in Obsidian; the form says so.
+- Templater's own prompts (`tp.system.prompt` and similar) always appear in Obsidian.
 - `{{selected}}` and `{{linkcurrent}}` come from Obsidian's active editor, not from Raycast.
-- Raycast can't see whether QuickAdd succeeded; errors appear in Obsidian.
+- In basic mode, Raycast can't see whether QuickAdd succeeded; errors appear in Obsidian.
