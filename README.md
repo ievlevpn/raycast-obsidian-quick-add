@@ -8,6 +8,10 @@
 
 <p align="center"><sub>An unofficial companion to <a href="https://github.com/chhoumann/quickadd"><b>QuickAdd</b></a>, the Obsidian plugin by Christian B. B. Houmann (<a href="https://quickadd.obsidian.guide/docs/">docs</a>).</sub></p>
 
+<p align="center">
+  <img src="metadata/obsidian-quickadd-1.png" width="720" alt="QuickAdd choices listed in Raycast" />
+</p>
+
 ## Highlights
 
 - **Everything QuickAdd asks, answered in Raycast.** Text, one-page forms, dropdowns, file and tag pickers, multi-selects, checkboxes, dates and times, confirmations. The extension drives QuickAdd's own interactive mode, so choices behave exactly as they do in Obsidian: no re-implementation, nothing to configure twice.
@@ -16,6 +20,11 @@
 - **A hotkey for any choice.** Select a choice, press `⌘⇧Q` to save it as a quicklink, and give it an alias or hotkey in Raycast.
 - **Works when Obsidian isn't open.** It opens the vault, or starts Obsidian, and brings Raycast back with your form.
 - **Always picks up your setup.** Choices are read from QuickAdd's settings each time, so new and renamed choices appear immediately.
+
+<p align="center">
+  <img src="metadata/obsidian-quickadd-2.png" width="49%" alt="A QuickAdd form in Raycast" />
+  <img src="metadata/obsidian-quickadd-3.png" width="49%" alt="Linking a note with [[ in Raycast" />
+</p>
 
 ## Requirements
 
