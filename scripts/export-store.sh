@@ -5,8 +5,8 @@ set -eu
 root="$(cd "$(dirname "$0")/.." && pwd)"
 dest="${1:?usage: scripts/export-store.sh <destination folder>}"
 mkdir -p "$dest"
-rm -rf "$dest/src" "$dest/assets" "$dest/metadata"
-for item in src assets package.json package-lock.json CHANGELOG.md tsconfig.json eslint.config.js .prettierrc .gitignore; do
+rm -rf "$dest/src" "$dest/tests" "$dest/assets" "$dest/metadata"
+for item in src tests vitest.config.ts assets package.json package-lock.json CHANGELOG.md tsconfig.json eslint.config.js .prettierrc .gitignore; do
   cp -R "$root/$item" "$dest/"
 done
 if [ -d "$root/metadata" ]; then cp -R "$root/metadata" "$dest/"; fi
