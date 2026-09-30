@@ -51,7 +51,7 @@
       },
       "format": {
         "enabled": true,
-        "format": "- [ ] {{VALUE:Title}} — {{VALUE:Author}} ({{VALUE:Book,Article,Paper,Podcast|name:Type}})\n"
+        "format": "- [ ] {{VALUE:Title}} — {{VALUE:Author}} ({{VALUE:Book,Article,Paper,Podcast|name:Type|label:Type}})\n"
       },
       "insertAfter": {
         "enabled": false,
