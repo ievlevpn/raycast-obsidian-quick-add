@@ -1,15 +1,5 @@
-import {
-  ActionPanel,
-  Detail,
-  Icon,
-  launchCommand,
-  LaunchType,
-  popToRoot,
-  PopToRootType,
-  showHUD,
-  showToast,
-  Toast,
-} from "@raycast/api";
+import { ActionPanel, Detail, Icon, popToRoot, PopToRootType, showHUD, showToast, Toast } from "@raycast/api";
+import { createDeeplink } from "@raycast/utils";
 import { useEffect, useRef, useState } from "react";
 import ChoiceForm from "./ChoiceForm";
 import { ensureVaultReady, realVaultDeps } from "./ensureVault";
@@ -72,13 +62,12 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       if (unmounted) return;
       if (!ready.ok) return fail(ready.reason, ready.message);
       if (ready.opened && !relaunched) {
-        // Opening the vault brought Obsidian forward and hid Raycast; relaunch this choice so Raycast
-        // comes back. The vault is open now, so the relaunched run starts right away.
-        await launchCommand({
-          name: "quickadd",
-          type: LaunchType.UserInitiated,
-          context: { vaultPath, choiceId: choice.id },
-        });
+        // Opening the vault brought Obsidian forward and hid Raycast. A command can't launchCommand
+        // itself, so reopen this choice through its deeplink (as a quicklink would); the vault is open
+        // now, so the relaunched run starts right away.
+        await openUri(
+          createDeeplink({ command: "quickadd", context: { vaultPath, choiceId: choice.id, relaunched: true } }),
+        );
         return;
       }
       const started = await startSession(cli, vaultName, choice.id);
