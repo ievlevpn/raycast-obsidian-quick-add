@@ -18,4 +18,8 @@ const raycastConfig = require("@raycast/eslint-config");
 
 module.exports = defineConfig([...raycastConfig]);
 CONFIG
+# `npm run publish` needs the folder to be a git repository with the changes committed.
+if [ ! -d "$dest/.git" ]; then git -C "$dest" init -q; fi
+git -C "$dest" add -A
+git -C "$dest" diff --cached --quiet || git -C "$dest" commit -q -m "Update Obsidian QuickAdd extension"
 echo "Exported to $dest"
