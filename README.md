@@ -1,52 +1,64 @@
-# Obsidian QuickAdd
+<p align="center">
+  <img src="assets/extension-icon.png" width="96" alt="" />
+</p>
 
-Run your [QuickAdd](https://github.com/chhoumann/quickadd) choices from Raycast.
+<h1 align="center">Obsidian QuickAdd for Raycast</h1>
 
-- Answer whatever the choice asks — text, forms, pickers, dates, confirmations — in Raycast (full mode, below).
-- Captures run with Obsidian in the background; choices set to open their note bring Obsidian forward.
-- Type `[[` in any text field to pick a note and insert `[[Note]]`, as in Obsidian.
-- New and changed choices show up automatically; the extension reads QuickAdd's settings each time it opens.
+<p align="center">Run your <a href="https://github.com/chhoumann/quickadd">QuickAdd</a> choices from Raycast and answer everything they ask without leaving what you're doing.</p>
 
-## Full and basic mode
+<p align="center"><sub>An unofficial companion to <a href="https://github.com/chhoumann/quickadd"><b>QuickAdd</b></a>, the Obsidian plugin by Christian B. B. Houmann (<a href="https://quickadd.obsidian.guide/docs/">docs</a>).</sub></p>
 
-**Full mode** (recommended) runs choices through QuickAdd's interactive command-line interface. Everything QuickAdd asks — text, one-page forms, suggesters and file pickers, multi-selects, checkboxes, dates, confirmations — is answered in Raycast. It needs:
+<p align="center">
+  <img src="metadata/obsidian-quickadd-1.png" width="720" alt="QuickAdd choices listed in Raycast" />
+</p>
 
-- Obsidian 1.12 or later, with **Settings → General → Advanced → Command line interface** turned on (restart Obsidian afterwards).
-- QuickAdd 2.27 or later.
+## Highlights
 
-If any of these is missing, the extension uses **basic mode**: it fills `{{VALUE}}` placeholders from the choice's format, file name and template in a Raycast form and sends them through QuickAdd's `obsidian://quickadd` link. Anything else QuickAdd asks then appears in Obsidian. The choice list says why basic mode is on.
+- **Everything QuickAdd asks, answered in Raycast.** Text, one-page forms, dropdowns, file and tag pickers, multi-selects, checkboxes, dates and times, confirmations. The extension drives QuickAdd's own interactive mode, so choices behave exactly as they do in Obsidian: no re-implementation, nothing to configure twice.
+- **Stays out of your way.** Captures run with Obsidian in the background. Obsidian only comes forward when a choice is set to open its note.
+- **`[[` links in any field.** Type `[[` to search your notes and insert `[[Note]]`, as in Obsidian.
+- **A hotkey for any choice.** Select a choice, press `⌘⇧Q` to save it as a quicklink, and give it an alias or hotkey in Raycast.
+- **Works when Obsidian isn't open.** It opens the vault, or starts Obsidian, and brings Raycast back with your form.
+- **Always picks up your setup.** Choices are read from QuickAdd's settings each time, so new and renamed choices appear immediately.
+
+<p align="center">
+  <img src="metadata/obsidian-quickadd-2.png" width="720" alt="A QuickAdd form with a note picker in Raycast" />
+</p>
 
 ## Requirements
 
-- Obsidian with the QuickAdd plugin. Obsidian is started if it isn't running.
+- Obsidian with the [QuickAdd](https://github.com/chhoumann/quickadd) plugin, version 2.27 or later.
+- For full support: Obsidian 1.12 or later with **Settings → General → Advanced → Command line interface** turned on (restart Obsidian afterwards).
 
-## Setup
+Without the command-line interface the extension still works in **basic mode**. It asks for `{{VALUE}}` fields in Raycast and sends them through QuickAdd's `obsidian://quickadd` link, and anything else is asked in Obsidian. The choice list tells you when basic mode is on and why.
 
-The vault is detected automatically when exactly one vault has QuickAdd. Otherwise set **Vault Folder** in the extension preferences, or pick the vault from the list.
+## Install
 
-## Hotkeys and aliases for single choices
+```sh
+git clone https://github.com/ievlevpn/raycast-obsidian-quick-add.git
+cd raycast-obsidian-quick-add
+npm install
+npm run dev
+```
 
-Select a choice, press `⌘⇧Q` (**Create Quicklink**), and save. In Raycast settings, give that quicklink an alias or a hotkey — it opens that choice's form directly. Quicklinks refer to the choice's id, so renaming it in QuickAdd doesn't break them.
+`npm run dev` adds the extension to Raycast; it stays there after you stop the command. The vault is found automatically when only one vault has QuickAdd. Otherwise pick it from the list or set **Vault Folder** in the extension's preferences.
 
 ## Limitations
 
-- Templater's own prompts (`tp.system.prompt` and similar) and dialogs opened by scripts appear in Obsidian. In full mode Raycast waits for them; after a few seconds it says so and offers **Open Obsidian** (⌘O).
-- QuickAdd sends file-picker and field-suggest inputs without a list of options, so they are plain text fields in Raycast.
-- `{{selected}}` and `{{linkcurrent}}` come from Obsidian's active editor, not from Raycast.
-- In basic mode, Raycast can't see whether QuickAdd succeeded; errors appear in Obsidian.
+- Templater's own prompts (`tp.system.prompt` and similar) and dialogs opened by scripts appear in Obsidian. Raycast shows that it's waiting and offers **Open Obsidian** (`⌘O`).
+- `{{selected}}` and `{{linkcurrent}}` come from Obsidian's active editor.
+- QuickAdd sends file-picker and field-suggest inputs without their options, so they are plain text fields.
 
 ## Development
 
 ```sh
-npm install
-npm test          # unit tests
-npm run dev       # load the extension in Raycast
+npm test       # unit tests
+npm run dev    # run in Raycast
+npm run lint
 ```
 
-`e2e-vault/` is a small vault with one QuickAdd choice per prompt kind, for trying the extension by hand. Its QuickAdd plugin code is not committed; copy it from a vault that has QuickAdd installed, then open the folder in Obsidian (Open folder as vault) and trust its plugins:
+`e2e-vault/` is a small vault with one QuickAdd choice per prompt type, for trying the extension by hand. Copy QuickAdd's plugin files into it with `scripts/setup-e2e-vault.sh /path/to/vault/.obsidian/plugins/quickadd`, then open the folder as a vault in Obsidian and trust its plugins. Reset it with `git checkout -- e2e-vault && git clean -fd e2e-vault`.
 
-```sh
-scripts/setup-e2e-vault.sh /path/to/some-vault/.obsidian/plugins/quickadd
-```
+## License
 
-After editing the fixture's QuickAdd settings, reload the plugin: `obsidian-cli vault=e2e-vault plugin:reload id=quickadd`. Reset the vault with `git checkout -- e2e-vault && git clean -fd e2e-vault`.
+MIT
