@@ -68,3 +68,129 @@ describe("listNotes", () => {
     expect(listNotes("/nonexistent/vault")).toEqual([]);
   });
 });
+
+import {
+  hashTriggerAt,
+  insertTag,
+  notesToTargets,
+  obsidianLinkTargets,
+  parseAliases,
+  parseFileList,
+  parseTags,
+} from "../src/links";
+
+describe("hashTriggerAt", () => {
+  it("fires for # at the start or after whitespace", () => {
+    expect(hashTriggerAt("", "#")).toBe(0);
+    expect(hashTriggerAt("idea ", "idea #")).toBe(5);
+    expect(hashTriggerAt("a\n", "a\n#")).toBe(2);
+    expect(hashTriggerAt("a  b", "a # b")).toBe(2);
+  });
+
+  it("ignores # inside words, URLs and other edits", () => {
+    expect(hashTriggerAt("C", "C#")).toBeUndefined();
+    expect(hashTriggerAt("page", "page#")).toBeUndefined();
+    expect(hashTriggerAt("#", "#t")).toBeUndefined();
+    expect(hashTriggerAt("see ", "see #tag")).toBeUndefined();
+  });
+});
+
+describe("insertTag", () => {
+  it("replaces the # with the tag", () => {
+    expect(insertTag("idea #", 5, "math")).toBe("idea #math");
+    expect(insertTag("a # b", 2, "x/y")).toBe("a #x/y b");
+  });
+});
+
+describe("parsing Obsidian CLI output", () => {
+  it("reads the file list, one raw path per line", () => {
+    expect(parseFileList("'Deep work'.md\nNotes/A b.md\r\nimg.png\n\n")).toEqual([
+      "'Deep work'.md",
+      "Notes/A b.md",
+      "img.png",
+    ]);
+    expect(parseFileList("")).toEqual([]);
+    expect(parseFileList("No files found.")).toEqual([]);
+  });
+
+  it("reads aliases as alias<TAB>path lines", () => {
+    expect(parseAliases("(∞,1)-category\tScratch/inf.md\nDW\tDeep work.md\n")).toEqual([
+      { alias: "(∞,1)-category", path: "Scratch/inf.md" },
+      { alias: "DW", path: "Deep work.md" },
+    ]);
+    expect(parseAliases("No aliases found.")).toEqual([]);
+  });
+
+  it("reads tags with counts, without the #", () => {
+    expect(parseTags({ items: [{ tag: "#math", count: "758" }, { tag: "#a/b", count: "2" }, { nope: 1 }] })).toEqual([
+      { tag: "math", count: 758 },
+      { tag: "a/b", count: 2 },
+    ]);
+    expect(parseTags({})).toEqual([]);
+  });
+});
+
+describe("link targets", () => {
+  const mtimes: Record<string, number> = { "A.md": 3, "sub/A.md": 1, "pic.png": 2, "Board.canvas": 4 };
+
+  it("builds Obsidian-style links for notes, other files and aliases, newest first", () => {
+    const targets = obsidianLinkTargets(
+      ["A.md", "sub/A.md", "pic.png", "Board.canvas"],
+      [{ alias: "Letter A", path: "sub/A.md" }],
+      (path) => mtimes[path] ?? 0,
+    );
+    expect(targets.map((t) => [t.title, t.subtitle, t.link, t.kind])).toEqual([
+      ["Board.canvas", "", "Board.canvas", "file"],
+      ["A", "", "A", "note"],
+      ["pic.png", "", "pic.png", "file"],
+      ["A", "sub", "sub/A", "note"],
+      ["Letter A", "→ sub/A", "sub/A|Letter A", "alias"],
+    ]);
+  });
+
+  it("turns scanned notes into targets", () => {
+    expect(notesToTargets([{ path: "x/N.md", name: "N", folder: "x", link: "N" }])).toEqual([
+      { id: "x/N.md", title: "N", subtitle: "x", link: "N", kind: "note" },
+    ]);
+  });
+});
+
+import { linkableFiles } from "../src/links";
+
+describe("linkableFiles", () => {
+  const paths = [
+    "A.md",
+    "Board.canvas",
+    "doc.pdf",
+    "img.PNG",
+    "song.mp3",
+    "run.sh",
+    "lib.js",
+    "data.csv",
+    "Archive/Old.md",
+  ];
+
+  it("keeps only file types Obsidian supports", () => {
+    expect(linkableFiles(paths, {})).toEqual([
+      "A.md",
+      "Board.canvas",
+      "doc.pdf",
+      "img.PNG",
+      "song.mp3",
+      "Archive/Old.md",
+    ]);
+  });
+
+  it("keeps everything when 'Detect all file extensions' is on", () => {
+    expect(linkableFiles(paths, { showUnsupportedFiles: true })).toEqual(paths);
+  });
+
+  it("drops Obsidian's excluded files (folder paths and /regex/ filters)", () => {
+    expect(linkableFiles(paths, { userIgnoreFilters: ["Archive/", "/^Board/"] })).toEqual([
+      "A.md",
+      "doc.pdf",
+      "img.PNG",
+      "song.mp3",
+    ]);
+  });
+});

@@ -1,18 +1,19 @@
 import { Action, ActionPanel, Form, Icon } from "@raycast/api";
 import { useState } from "react";
 import { dateDefault, dropdownDefault, FieldSpec, FormValues, validateForm } from "../replies";
+import { VaultRef } from "../suggestions";
 import CancelAction from "./CancelAction";
 import LinkingTextField from "./LinkingTextField";
 
 type Props = {
   title: string;
-  vaultPath: string;
+  vault: VaultRef;
   specs: FieldSpec[];
   onSubmit: (values: FormValues) => void;
   onCancel: () => void;
 };
 
-export default function FormPrompt({ title, vaultPath, specs, onSubmit, onCancel }: Props) {
+export default function FormPrompt({ title, vault, specs, onSubmit, onCancel }: Props) {
   const [errors, setErrors] = useState<Record<number, string>>({});
 
   function submit(values: FormValues) {
@@ -41,18 +42,12 @@ export default function FormPrompt({ title, vaultPath, specs, onSubmit, onCancel
         </ActionPanel>
       }
     >
-      {specs.flatMap((spec, index) => renderField(spec, index, vaultPath, errors[index], () => clear(index)))}
+      {specs.flatMap((spec, index) => renderField(spec, index, vault, errors[index], () => clear(index)))}
     </Form>
   );
 }
 
-function renderField(
-  spec: FieldSpec,
-  index: number,
-  vaultPath: string,
-  error: string | undefined,
-  onChange: () => void,
-) {
+function renderField(spec: FieldSpec, index: number, vault: VaultRef, error: string | undefined, onChange: () => void) {
   const id = `f${index}`;
   const common = { id, title: spec.label, info: spec.info, error, onChange };
   const text = typeof spec.defaultValue === "string" ? spec.defaultValue : undefined;
@@ -67,7 +62,7 @@ function renderField(
         <LinkingTextField
           key={id}
           {...common}
-          vaultPath={vaultPath}
+          vault={vault}
           multiline
           placeholder={spec.placeholder}
           defaultValue={text}
@@ -121,7 +116,7 @@ function renderField(
         <LinkingTextField
           key={id}
           {...common}
-          vaultPath={vaultPath}
+          vault={vault}
           placeholder={spec.placeholder ?? (spec.optional ? "Optional" : undefined)}
           defaultValue={text}
           autoFocus={index === 0}

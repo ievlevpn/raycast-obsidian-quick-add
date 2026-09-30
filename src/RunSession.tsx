@@ -232,7 +232,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       <FormPrompt
         key={current.requestId}
         title={title}
-        vaultPath={vaultPath}
+        vault={{ vaultPath, vaultName, cli }}
         specs={specs}
         onSubmit={(values) => answer(current, replyForForm(prompt, specs, values))}
         onCancel={cancel}
@@ -268,6 +268,8 @@ function BasicFallback({
     if (choice.fields.length === 0) void runChoice(vaultName, choice, []);
   }, []);
   if (choice.fields.length > 0)
-    return <ChoiceForm vaultName={vaultName} vaultPath={vaultPath} choice={choice} notice={REASON_TEXT[reason]} />;
+    return (
+      <ChoiceForm vaultName={vaultName} vault={{ vaultPath, vaultName }} choice={choice} notice={REASON_TEXT[reason]} />
+    );
   return <Detail isLoading navigationTitle={choice.title} markdown="Sending to QuickAdd…" />;
 }

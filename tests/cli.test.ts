@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
-import { classifyCliOutput, findCli, readRegistry, runCli } from "../src/cli";
+import { classifyCliOutput, classifyCliText, findCli, readRegistry, runCli, runCliText } from "../src/cli";
 import { fakeCli, sq } from "./helpers/fakeCli";
 
 describe("classifyCliOutput", () => {
@@ -22,6 +22,27 @@ describe("classifyCliOutput", () => {
     ["{broken json", "unknown"],
   ])("classifies %j as %s", (stdout, reason) => {
     expect(classifyCliOutput(stdout)).toEqual({ kind: "failure", reason, message: stdout.trim() });
+  });
+});
+
+describe("list-shaped JSON and plain text", () => {
+  it("wraps a JSON array as { items }", () => {
+    expect(classifyCliOutput('[{"tag":"#a","count":"1"}]')).toEqual({
+      kind: "json",
+      data: { items: [{ tag: "#a", count: "1" }] },
+    });
+  });
+
+  it("returns plain text unless it is a known failure", () => {
+    expect(classifyCliText("A.md\nB.md\n")).toEqual({ kind: "text", text: "A.md\nB.md\n" });
+    expect(classifyCliText("")).toEqual({ kind: "text", text: "" });
+    expect(classifyCliText("Command line interface is not enabled.")).toMatchObject({ reason: "cli-disabled" });
+    expect(classifyCliText('Error: Command "files" not found.')).toMatchObject({ kind: "failure", reason: "unknown" });
+  });
+
+  it("runs a text command", async () => {
+    const cli = fakeCli(`printf 'A.md\\nB.md\\n'`);
+    expect(await runCliText(cli, "v", "files")).toEqual({ kind: "text", text: "A.md\nB.md\n" });
   });
 });
 
