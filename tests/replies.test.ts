@@ -60,6 +60,16 @@ describe("specsFromQuickAddFields", () => {
     expect(specsFromQuickAddFields([field as QaField])[0].kind).toBe(kind);
   });
 
+  it("uses a date-time picker when the date format has a time", () => {
+    const [timed, dated] = specsFromQuickAddFields([
+      { id: "a", type: "date", dateFormat: "YYYY-MM-DD HH:mm" },
+      { id: "b", type: "date", dateFormat: "dddd, MMMM Do" },
+    ]);
+    expect(timed).toMatchObject({ kind: "date", withTime: true });
+    expect(dated.withTime).toBeFalsy();
+    expect(specsForPrompt({ type: "date", dateFormat: "YYYY-MM-DD h:mm a" })![0].withTime).toBe(true);
+  });
+
   it("keeps labels, defaults and custom input", () => {
     const [spec] = specsFromQuickAddFields([
       { id: "c", type: "suggester", options: ["x"], defaultValue: "x", suggesterConfig: { allowCustomInput: true } },

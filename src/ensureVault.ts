@@ -1,4 +1,7 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { CliFailure, CliResult, normalizePath, readRegistry, runCli } from "./cli";
+import { QUICKADD_DATA } from "./config";
 import { openUri } from "./open";
 import { buildOpenUri } from "./uri";
 
@@ -8,6 +11,8 @@ export interface VaultDeps {
   list(): Promise<CliResult>;
   sleep(ms: number): Promise<void>;
   now(): number;
+  /** Choice ids in the vault's own QuickAdd settings on disk. */
+  expectedIds(): string[];
 }
 
 export type VaultReady =
@@ -28,7 +33,8 @@ export function choiceIds(data: Record<string, unknown>): string[] {
 
 /**
  * A `vault=` command for a vault that isn't open makes Obsidian open it, and a command sent while it
- * loads can run in another window. Only report ready once that vault's QuickAdd lists the choice.
+ * loads can run in another window. For a vault we had to open, only report ready once QuickAdd lists
+ * exactly that vault's own choices; failures while it loads (plugins not registered yet) mean "wait".
  */
 export async function ensureVaultReady(choiceId: string, deps: VaultDeps, timeoutMs = 20000): Promise<VaultReady> {
   let opened = false;
@@ -37,10 +43,13 @@ export async function ensureVaultReady(choiceId: string, deps: VaultDeps, timeou
     opened = true;
   }
   const deadline = deps.now() + timeoutMs;
+  let lastFailure: { reason: CliFailure; message: string } | undefined;
   for (;;) {
     const result = await deps.list();
     if (result.kind === "json") {
-      if (choiceIds(result.data).includes(choiceId)) return { ok: true };
+      lastFailure = undefined;
+      const ids = choiceIds(result.data);
+      if (ids.includes(choiceId) && (!opened || sameIds(ids, deps.expectedIds()))) return { ok: true };
       if (!opened) {
         return {
           ok: false,
@@ -54,10 +63,13 @@ export async function ensureVaultReady(choiceId: string, deps: VaultDeps, timeou
         await deps.open();
         opened = true;
       }
-    } else {
+    } else if (!opened) {
       return { ok: false, reason: result.reason, message: result.message };
+    } else {
+      lastFailure = { reason: result.reason, message: result.message };
     }
     if (deps.now() >= deadline) {
+      if (lastFailure) return { ok: false, ...lastFailure };
       return {
         ok: false,
         reason: "timeout",
@@ -68,6 +80,20 @@ export async function ensureVaultReady(choiceId: string, deps: VaultDeps, timeou
   }
 }
 
+function sameIds(a: string[], b: string[]): boolean {
+  const left = new Set(a);
+  const right = new Set(b);
+  return left.size === right.size && [...left].every((id) => right.has(id));
+}
+
+function idsOnDisk(vaultPath: string): string[] {
+  try {
+    return choiceIds(JSON.parse(readFileSync(join(vaultPath, QUICKADD_DATA), "utf8")));
+  } catch {
+    return [];
+  }
+}
+
 export function realVaultDeps(cli: string, vaultName: string, vaultPath: string): VaultDeps {
   return {
     isOpen: () => readRegistry().openVaults.includes(normalizePath(vaultPath)),
@@ -75,5 +101,6 @@ export function realVaultDeps(cli: string, vaultName: string, vaultPath: string)
     list: () => runCli(cli, vaultName, "quickadd:list"),
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     now: () => Date.now(),
+    expectedIds: () => idsOnDisk(vaultPath),
   };
 }

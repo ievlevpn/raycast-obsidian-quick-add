@@ -20,6 +20,9 @@ export type SessionEvent = PromptEvent | { kind: "done"; result: DoneResult } | 
 /** Client for QuickAdd's interactive server: long-poll for events, reply to prompts, abort. */
 export class InteractiveSession {
   private stopped = false;
+  /** QuickAdd itself ended the run (done or error), so there is nothing to abort. */
+  private ended = false;
+  private abortSent = false;
 
   constructor(private readonly info: SessionInfo) {}
 
@@ -35,7 +38,7 @@ export class InteractiveSession {
   /** Polls until done/error/abort. Runs independently of the UI so QuickAdd's watchdog never fires. */
   async pollLoop(onEvent: (event: SessionEvent) => void): Promise<void> {
     while (!this.stopped) {
-      let event: { kind?: unknown; error?: unknown };
+      let event: { kind?: unknown; error?: unknown; ok?: unknown };
       try {
         const response = await fetch(this.url("/poll"));
         event = (await response.json()) as typeof event;
@@ -46,20 +49,24 @@ export class InteractiveSession {
         return;
       }
       if (this.stopped) return;
-      if (event.kind === "idle") continue;
       if (event.kind === "prompt") {
         onEvent(event as PromptEvent);
         continue;
       }
-      this.stopped = true;
       if (event.kind === "done") {
+        this.stopped = this.ended = true;
         onEvent(event as SessionEvent);
         return;
       }
-      const message =
-        typeof event.error === "string" ? event.error : `Unexpected reply from QuickAdd: ${JSON.stringify(event)}`;
-      onEvent({ kind: "error", error: message });
-      return;
+      if (event.kind === "error" || typeof event.error === "string" || event.ok === false) {
+        this.stopped = this.ended = true;
+        onEvent({
+          kind: "error",
+          error: typeof event.error === "string" ? event.error : "QuickAdd reported an error.",
+        });
+        return;
+      }
+      // "idle", or an event kind a newer QuickAdd added: keep polling.
     }
   }
 
@@ -77,9 +84,11 @@ export class InteractiveSession {
     }
   }
 
+  /** Ends the run in QuickAdd unless QuickAdd already ended it; safe to call more than once. */
   async abort(): Promise<void> {
-    if (this.stopped) return;
     this.stopped = true;
+    if (this.ended || this.abortSent) return;
+    this.abortSent = true;
     try {
       await fetch(this.url("/abort"), { method: "POST" });
     } catch {

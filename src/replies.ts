@@ -14,6 +14,7 @@ export interface QaField {
   description?: string;
   options?: string[];
   displayOptions?: string[];
+  dateFormat?: string;
   optional?: boolean;
   suggesterConfig?: { allowCustomInput?: boolean; multiSelect?: boolean };
 }
@@ -25,6 +26,7 @@ export interface QaPrompt {
   defaultValue?: string;
   multiline?: boolean;
   withTime?: boolean;
+  dateFormat?: string;
   text?: string | string[];
   items?: QaItem[];
   preselected?: string[];
@@ -55,6 +57,9 @@ export interface FieldSpec {
 /** Raycast form values, keyed `f<index>` and `f<index>-custom`. */
 export type FormValues = Record<string, unknown>;
 
+/** Moment formats with hours, minutes or seconds need a date-time picker. */
+const hasTime = (dateFormat: string | undefined) => /[Hhkms]/.test((dateFormat ?? "").replace(/\[[^\]]*\]/g, ""));
+
 function fieldSpec(field: QaField): FieldSpec {
   const options = (field.options ?? []).map((value, index) => ({
     value,
@@ -83,7 +88,7 @@ function fieldSpec(field: QaField): FieldSpec {
       }
       return { ...base, kind: "dropdown", options, allowCustom };
     case "date":
-      return { ...base, kind: "date" };
+      return { ...base, kind: "date", withTime: hasTime(field.dateFormat) };
     case "number":
     case "slider":
       return { ...base, kind: "number" };
@@ -122,7 +127,7 @@ export function specsForPrompt(prompt: QaPrompt): FieldSpec[] | undefined {
           kind: "date",
           placeholder: prompt.placeholder,
           defaultValue: prompt.defaultValue,
-          withTime: prompt.withTime === true,
+          withTime: prompt.withTime === true || hasTime(prompt.dateFormat),
           optional: true,
         },
       ];

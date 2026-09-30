@@ -94,6 +94,27 @@ describe("InteractiveSession", () => {
     expect((events[0] as { error: string }).error).toMatch(/Lost connection to QuickAdd/);
   });
 
+  it("ignores event kinds it does not know", async () => {
+    fake = await startFakeQuickAdd();
+    fake.push({ kind: "progress", step: 1 });
+    fake.push(done);
+    const events: SessionEvent[] = [];
+    await new InteractiveSession(info(fake)).pollLoop((event) => events.push(event));
+    expect(events.map((e) => e.kind)).toEqual(["done"]);
+  });
+
+  it("still aborts the server session after a client-side failure", async () => {
+    fake = await startFakeQuickAdd();
+    fake.rawNextPoll = "not json";
+    const session = new InteractiveSession(info(fake));
+    const events: SessionEvent[] = [];
+    await session.pollLoop((event) => events.push(event));
+    expect(events.map((e) => e.kind)).toEqual(["error"]);
+    await session.abort();
+    await session.abort();
+    expect(fake.aborts).toBe(1);
+  });
+
   it("throws when QuickAdd rejects a reply", async () => {
     fake = await startFakeQuickAdd();
     fake.replyFailure = { status: 409, body: { ok: false, error: "No pending prompt for that requestId" } };

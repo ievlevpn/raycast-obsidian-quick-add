@@ -1,4 +1,4 @@
-import { ActionPanel, Detail, Icon, popToRoot, showHUD, showToast, Toast } from "@raycast/api";
+import { ActionPanel, Detail, Icon, popToRoot, PopToRootType, showHUD, showToast, Toast } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
 import ChoiceForm from "./ChoiceForm";
 import { ensureVaultReady, realVaultDeps } from "./ensureVault";
@@ -28,6 +28,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice }: Props)
   const session = useRef<InteractiveSession | undefined>(undefined);
 
   function fail(reason: string, message: string) {
+    void session.current?.abort();
     if (isBasicReason(reason)) {
       setPhase({ kind: "basic", reason });
       return;
@@ -43,7 +44,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice }: Props)
     }
     if (event.kind === "done") {
       if (choice.openFile && event.result.file) await openUri(buildOpenUri(vaultName, event.result.file));
-      await showHUD(doneMessage(choice.name, event.result));
+      await showHUD(doneMessage(choice.name, event.result), { popToRootType: PopToRootType.Immediate });
       return;
     }
     if (/cancelled by user/i.test(event.error)) {

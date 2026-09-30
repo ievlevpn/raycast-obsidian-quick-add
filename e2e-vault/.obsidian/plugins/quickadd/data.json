@@ -60,7 +60,7 @@
       "captureTo": "Inbox.md",
       "captureToActiveFile": false,
       "createFileIfItDoesntExist": { "enabled": false, "createWithTemplate": false, "template": "" },
-      "format": { "enabled": true, "format": "- due: {{VDATE:due,YYYY-MM-DD}}\n" },
+      "format": { "enabled": true, "format": "- due: {{VDATE:due,YYYY-MM-DD HH:mm}}\n" },
       "insertAfter": { "enabled": false, "after": "", "insertAtEnd": false, "considerSubsections": false, "createIfNotFound": false, "createIfNotFoundLocation": "top" },
       "prepend": false,
       "task": false,

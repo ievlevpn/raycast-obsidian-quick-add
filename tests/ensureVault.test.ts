@@ -6,9 +6,13 @@ const list = (...ids: string[]): CliResult => ({
   kind: "json",
   data: { ok: true, choices: ids.map((id) => ({ id })) },
 });
-const failure = (reason: "cli-disabled" | "not-running"): CliResult => ({ kind: "failure", reason, message: reason });
+const failure = (reason: "cli-disabled" | "not-running" | "quickadd-old"): CliResult => ({
+  kind: "failure",
+  reason,
+  message: reason,
+});
 
-function deps(open: boolean, responses: CliResult[]) {
+function deps(open: boolean, responses: CliResult[], expected: string[] = ["b"]) {
   let clock = 0;
   const calls = { open: 0, list: 0 };
   const d: VaultDeps = {
@@ -24,6 +28,7 @@ function deps(open: boolean, responses: CliResult[]) {
       clock += ms;
     },
     now: () => clock,
+    expectedIds: () => expected,
   };
   return { d, calls };
 }
@@ -61,6 +66,26 @@ describe("ensureVaultReady", () => {
     const { d, calls } = deps(false, [list("a")]);
     expect(await ensureVaultReady("b", d, 2000)).toMatchObject({ ok: false, reason: "timeout" });
     expect(calls.list).toBe(5);
+  });
+});
+
+describe("ensureVaultReady after opening the vault", () => {
+  it("keeps waiting through plugin-loading failures", async () => {
+    const { d, calls } = deps(false, [failure("quickadd-old"), list("b")]);
+    expect(await ensureVaultReady("b", d)).toEqual({ ok: true });
+    expect(calls.list).toBe(2);
+  });
+
+  it("reports the last failure if it persists until the deadline", async () => {
+    const { d } = deps(false, [failure("quickadd-old")]);
+    expect(await ensureVaultReady("b", d, 2000)).toMatchObject({ ok: false, reason: "quickadd-old" });
+  });
+
+  it("waits until the listed choices are exactly the vault's own", async () => {
+    // A vault still loading: the first answer comes from another window that shares the choice id.
+    const { d, calls } = deps(false, [list("b", "x"), list("b", "c")], ["c", "b"]);
+    expect(await ensureVaultReady("b", d)).toEqual({ ok: true });
+    expect(calls.list).toBe(2);
   });
 });
 

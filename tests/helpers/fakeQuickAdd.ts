@@ -10,6 +10,7 @@ export interface FakeQuickAdd {
   push(event: object): void;
   onReply?: (body: { requestId: string; value: unknown }) => void;
   failNextPoll?: { status: number; body: object };
+  rawNextPoll?: string;
   replyFailure?: { status: number; body: object };
   close(): Promise<void>;
 }
@@ -43,6 +44,13 @@ export async function startFakeQuickAdd(): Promise<FakeQuickAdd> {
       return;
     }
     if (req.method === "GET" && url.pathname === "/poll") {
+      if (fake.rawNextPoll !== undefined) {
+        const raw = fake.rawNextPoll;
+        fake.rawNextPoll = undefined;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(raw);
+        return;
+      }
       if (fake.failNextPoll) {
         const failure = fake.failNextPoll;
         fake.failNextPoll = undefined;
