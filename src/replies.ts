@@ -163,7 +163,7 @@ export function dateReply(date: Date, withTime: boolean): string {
   const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   if (!withTime) return `@date:${day}`;
-  // Local wall-clock time with its UTC offset, so QuickAdd formats the time the user picked.
+  // Readable local wall-clock time with its UTC offset (the same instant QuickAdd would get from a UTC string).
   const offset = -date.getTimezoneOffset();
   const zone = `${offset >= 0 ? "+" : "-"}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`;
   return `@date:${day}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${zone}`;

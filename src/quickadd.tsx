@@ -87,7 +87,7 @@ function Choices({
     if (isAmbiguousVault(vaultPath, registeredVaultPaths())) {
       return {
         choices: [],
-        error: `Another Obsidian vault is also named “${vaultName(vaultPath)}”. Obsidian can't tell them apart, so QuickAdd can't be run safely here. Rename one of the vault folders.`,
+        error: `Another Obsidian vault is also named “${vaultName(vaultPath)}”. Obsidian can't tell them apart, so QuickAdd can't be run safely here. Rename one of the vault folders, or remove the one you no longer use from Obsidian's vault list.`,
       };
     }
     try {

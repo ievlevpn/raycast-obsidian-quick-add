@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { doneMessage, InteractiveSession, PromptEvent, SessionEvent, startSession, withoutPrompt } from "../src/session";
+import {
+  doneMessage,
+  InteractiveSession,
+  PromptEvent,
+  SessionEvent,
+  startSession,
+  withoutPrompt,
+} from "../src/session";
 import { fakeCli, sq } from "./helpers/fakeCli";
 import { FakeQuickAdd, startFakeQuickAdd } from "./helpers/fakeQuickAdd";
 

@@ -41,6 +41,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
   const session = useRef<InteractiveSession | undefined>(undefined);
   const unmounted = useRef(false);
   const answered = useRef(new Set<string>());
+  const cancelled = useRef(false);
   const [slow, setSlow] = useState(false);
 
   function fail(reason: string, message: string) {
@@ -69,6 +70,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
             title: `${doneMessage(choice.name, event.result)}, but it couldn't be opened`,
             message: String(error),
           });
+          await close();
           return;
         }
       }
@@ -83,9 +85,14 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
   }
 
   useEffect(() => {
+    // Per-run flag: Raycast's dev mode mounts views twice (mount → unmount → mount), so the first run
+    // must stop on its own while the second carries on. The shared ref only serves the handlers.
+    let active = true;
+    unmounted.current = false;
+    const stopped = () => !active || cancelled.current;
     (async () => {
       const ready = await ensureVaultReady(choice.id, realVaultDeps(cli, vaultName, vaultPath));
-      if (unmounted.current) return;
+      if (stopped()) return;
       if (!ready.ok) return fail(ready.reason, ready.message);
       if (ready.opened && !relaunched) {
         // Opening the vault brought Obsidian forward and hid Raycast. A command can't launchCommand
@@ -97,15 +104,21 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
         return;
       }
       const started = await startSession(cli, vaultName, choice.id);
+      if (stopped()) {
+        if (started.ok) await started.session.abort();
+        return;
+      }
       if (!started.ok) return fail(started.reason, started.message);
       session.current = started.session;
-      if (unmounted.current) return started.session.abort();
       setPhase({ kind: "waiting" });
       await started.session.pollLoop((event) => {
-        if (!unmounted.current) void handle(event);
+        if (active) void handle(event);
       });
-    })().catch((error) => fail("unknown", String(error)));
+    })().catch((error) => {
+      if (active) fail("unknown", String(error));
+    });
     return () => {
+      active = false;
       unmounted.current = true;
       void session.current?.abort();
     };
@@ -137,6 +150,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
   }
 
   async function cancel() {
+    cancelled.current = true;
     await session.current?.abort();
     await close();
   }
@@ -166,7 +180,11 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
                 title="Open Obsidian"
                 icon={Icon.AppWindow}
                 shortcut={Keyboard.Shortcut.Common.Open}
-                onAction={() => openUri(buildOpenUri(vaultName))}
+                onAction={() =>
+                  openUri(buildOpenUri(vaultName)).catch((error) =>
+                    showToast({ style: Toast.Style.Failure, title: "Could not open Obsidian", message: String(error) }),
+                  )
+                }
               />
             ) : null}
             <CancelAction onCancel={cancel} />

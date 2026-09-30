@@ -203,7 +203,7 @@ describe("number ranges", () => {
 describe("helpers", () => {
   it("formats dates for QuickAdd", () => {
     expect(dateReply(new Date(2026, 0, 5, 9, 30), false)).toBe("@date:2026-01-05");
-    // With a time: local wall-clock time plus the UTC offset, so QuickAdd formats the time the user picked.
+    // With a time: readable local wall-clock time plus the UTC offset, for the same instant.
     const picked = new Date(2026, 0, 5, 9, 30);
     const timed = dateReply(picked, true);
     expect(timed).toMatch(/^@date:2026-01-05T09:30:00[+-]\d\d:\d\d$/);
@@ -213,9 +213,9 @@ describe("helpers", () => {
   it("offers no value for an optional dropdown without a default", () => {
     const opts = [{ value: "x", title: "X" }];
     expect(dropdownDefault({ id: "a", label: "a", kind: "dropdown", options: opts, optional: true })).toBe("");
-    expect(dropdownDefault({ id: "a", label: "a", kind: "dropdown", options: opts, optional: true, defaultValue: "x" })).toBe(
-      "x",
-    );
+    expect(
+      dropdownDefault({ id: "a", label: "a", kind: "dropdown", options: opts, optional: true, defaultValue: "x" }),
+    ).toBe("x");
     const spec: FieldSpec = { id: "a", label: "a", kind: "dropdown", options: opts, optional: true };
     expect(fieldValue(spec, { f0: "" }, 0)).toBe("");
     expect(validateForm([spec], { f0: "" })).toEqual({});
