@@ -1,4 +1,15 @@
-import { ActionPanel, Detail, Icon, popToRoot, PopToRootType, showHUD, showToast, Toast } from "@raycast/api";
+import {
+  ActionPanel,
+  Detail,
+  Icon,
+  launchCommand,
+  LaunchType,
+  popToRoot,
+  PopToRootType,
+  showHUD,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
 import ChoiceForm from "./ChoiceForm";
 import { ensureVaultReady, realVaultDeps } from "./ensureVault";
@@ -20,9 +31,9 @@ type Phase =
   | { kind: "failed"; message: string }
   | { kind: "basic"; reason: BasicReason };
 
-type Props = { cli: string; vaultPath: string; vaultName: string; choice: Choice };
+type Props = { cli: string; vaultPath: string; vaultName: string; choice: Choice; relaunched?: boolean };
 
-export default function RunSession({ cli, vaultPath, vaultName, choice }: Props) {
+export default function RunSession({ cli, vaultPath, vaultName, choice, relaunched }: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
   const [prompts, setPrompts] = useState<PromptEvent[]>([]);
   const session = useRef<InteractiveSession | undefined>(undefined);
@@ -60,6 +71,16 @@ export default function RunSession({ cli, vaultPath, vaultName, choice }: Props)
       const ready = await ensureVaultReady(choice.id, realVaultDeps(cli, vaultName, vaultPath));
       if (unmounted) return;
       if (!ready.ok) return fail(ready.reason, ready.message);
+      if (ready.opened && !relaunched) {
+        // Opening the vault brought Obsidian forward and hid Raycast; relaunch this choice so Raycast
+        // comes back. The vault is open now, so the relaunched run starts right away.
+        await launchCommand({
+          name: "quickadd",
+          type: LaunchType.UserInitiated,
+          context: { vaultPath, choiceId: choice.id },
+        });
+        return;
+      }
       const started = await startSession(cli, vaultName, choice.id);
       if (!started.ok) return fail(started.reason, started.message);
       session.current = started.session;

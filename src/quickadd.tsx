@@ -21,7 +21,7 @@ import { runChoice } from "./run";
 import RunSession from "./RunSession";
 import { Choice } from "./types";
 
-type LaunchContext = { vaultPath?: string; choiceId?: string };
+type LaunchContext = { vaultPath?: string; choiceId?: string; relaunched?: boolean };
 
 export default function Command(props: LaunchProps<{ launchContext?: LaunchContext }>) {
   const context = props.launchContext ?? {};
@@ -29,7 +29,8 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
   const vaults = useMemo(() => (preferredPath ? [preferredPath] : findQuickAddVaults()), [preferredPath]);
   const target = context.vaultPath ?? (vaults.length === 1 ? vaults[0] : undefined);
 
-  if (target) return <Choices vaultPath={target} choiceId={context.choiceId} cliPath={cliPath} />;
+  if (target)
+    return <Choices vaultPath={target} choiceId={context.choiceId} cliPath={cliPath} relaunched={context.relaunched} />;
   if (vaults.length === 0) {
     return (
       <ErrorView message="No Obsidian vault with QuickAdd was found. Set the vault folder in the extension preferences." />
@@ -58,7 +59,17 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
   );
 }
 
-function Choices({ vaultPath, choiceId, cliPath }: { vaultPath: string; choiceId?: string; cliPath?: string }) {
+function Choices({
+  vaultPath,
+  choiceId,
+  cliPath,
+  relaunched,
+}: {
+  vaultPath: string;
+  choiceId?: string;
+  cliPath?: string;
+  relaunched?: boolean;
+}) {
   const [checks, setChecks] = useState(0);
   const mode = useMemo(() => detectMode(findCli(cliPath || undefined), readRegistry()), [cliPath, checks]);
   const loaded = useMemo((): { choices: Choice[]; error?: string } => {
@@ -81,7 +92,9 @@ function Choices({ vaultPath, choiceId, cliPath }: { vaultPath: string; choiceId
   if (loaded.error) return <ErrorView message={loaded.error} />;
   if (direct) {
     if (mode.mode === "full")
-      return <RunSession cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={direct} />;
+      return (
+        <RunSession cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={direct} relaunched={relaunched} />
+      );
     if (direct.fields.length > 0) return <ChoiceForm vaultName={name} choice={direct} />;
     return <List isLoading />;
   }

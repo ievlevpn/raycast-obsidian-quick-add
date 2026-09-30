@@ -36,19 +36,19 @@ function deps(open: boolean, responses: CliResult[], expected: string[] = ["b"])
 describe("ensureVaultReady", () => {
   it("is ready at once when the vault is open and has the choice", async () => {
     const { d, calls } = deps(true, [list("a", "b")]);
-    expect(await ensureVaultReady("b", d)).toEqual({ ok: true });
+    expect(await ensureVaultReady("b", d)).toEqual({ ok: true, opened: false });
     expect(calls).toEqual({ open: 0, list: 1 });
   });
 
   it("opens a closed vault and waits until it answers with the choice", async () => {
     const { d, calls } = deps(false, [list("other"), list("other"), list("b")]);
-    expect(await ensureVaultReady("b", d)).toEqual({ ok: true });
+    expect(await ensureVaultReady("b", d)).toEqual({ ok: true, opened: true });
     expect(calls).toEqual({ open: 1, list: 3 });
   });
 
   it("launches Obsidian when it is not running", async () => {
     const { d, calls } = deps(true, [failure("not-running"), list("b")]);
-    expect(await ensureVaultReady("b", d)).toEqual({ ok: true });
+    expect(await ensureVaultReady("b", d)).toEqual({ ok: true, opened: true });
     expect(calls.open).toBe(1);
   });
 
@@ -72,7 +72,7 @@ describe("ensureVaultReady", () => {
 describe("ensureVaultReady after opening the vault", () => {
   it("keeps waiting through plugin-loading failures", async () => {
     const { d, calls } = deps(false, [failure("quickadd-old"), list("b")]);
-    expect(await ensureVaultReady("b", d)).toEqual({ ok: true });
+    expect(await ensureVaultReady("b", d)).toEqual({ ok: true, opened: true });
     expect(calls.list).toBe(2);
   });
 
@@ -84,7 +84,7 @@ describe("ensureVaultReady after opening the vault", () => {
   it("waits until the listed choices are exactly the vault's own", async () => {
     // A vault still loading: the first answer comes from another window that shares the choice id.
     const { d, calls } = deps(false, [list("b", "x"), list("b", "c")], ["c", "b"]);
-    expect(await ensureVaultReady("b", d)).toEqual({ ok: true });
+    expect(await ensureVaultReady("b", d)).toEqual({ ok: true, opened: true });
     expect(calls.list).toBe(2);
   });
 });

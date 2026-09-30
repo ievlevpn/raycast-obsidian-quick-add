@@ -16,7 +16,8 @@ export interface VaultDeps {
 }
 
 export type VaultReady =
-  { ok: true } | { ok: false; reason: CliFailure | "timeout" | "choice-missing"; message: string };
+  /** `opened`: the vault had to be opened (or Obsidian launched), which moves focus to Obsidian. */
+  { ok: true; opened: boolean } | { ok: false; reason: CliFailure | "timeout" | "choice-missing"; message: string };
 
 export function choiceIds(data: Record<string, unknown>): string[] {
   const ids: string[] = [];
@@ -49,7 +50,7 @@ export async function ensureVaultReady(choiceId: string, deps: VaultDeps, timeou
     if (result.kind === "json") {
       lastFailure = undefined;
       const ids = choiceIds(result.data);
-      if (ids.includes(choiceId) && (!opened || sameIds(ids, deps.expectedIds()))) return { ok: true };
+      if (ids.includes(choiceId) && (!opened || sameIds(ids, deps.expectedIds()))) return { ok: true, opened };
       if (!opened) {
         return {
           ok: false,
