@@ -2,3 +2,12 @@ node_modules/
 dist/
 raycast-env.d.ts
 .DS_Store
+
+# e2e fixture vault: keep only the fixture, not Obsidian's state or plugin code
+e2e-vault/.obsidian/*
+!e2e-vault/.obsidian/community-plugins.json
+!e2e-vault/.obsidian/plugins/
+e2e-vault/.obsidian/plugins/*
+!e2e-vault/.obsidian/plugins/quickadd/
+e2e-vault/.obsidian/plugins/quickadd/*
+!e2e-vault/.obsidian/plugins/quickadd/data.json
