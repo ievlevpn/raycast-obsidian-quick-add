@@ -1,15 +1,18 @@
 import { Action, ActionPanel, Form, Icon } from "@raycast/api";
 import { useState } from "react";
 import { isLoneValue } from "./parse";
+import LinkingTextField from "./prompts/LinkingTextField";
 import { runChoice } from "./run";
 import { Choice } from "./types";
 
 export default function ChoiceForm({
   vaultName,
+  vaultPath,
   choice,
   notice,
 }: {
   vaultName: string;
+  vaultPath: string;
   choice: Choice;
   notice?: string;
 }) {
@@ -72,9 +75,11 @@ export default function ChoiceForm({
         }
         if (loneValue) {
           return (
-            <Form.TextArea
+            <LinkingTextField
               key={id}
               id={id}
+              vaultPath={vaultPath}
+              multiline
               title={choice.name}
               autoFocus
               defaultValue={field.defaultValue}
@@ -84,9 +89,10 @@ export default function ChoiceForm({
           );
         }
         return (
-          <Form.TextField
+          <LinkingTextField
             key={id}
             id={id}
+            vaultPath={vaultPath}
             title={field.label}
             autoFocus={index === 0}
             defaultValue={field.defaultValue}

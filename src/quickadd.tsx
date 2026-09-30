@@ -112,7 +112,7 @@ function Choices({
       return (
         <RunSession cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={direct} relaunched={relaunched} />
       );
-    if (direct.fields.length > 0) return <ChoiceForm vaultName={name} choice={direct} />;
+    if (direct.fields.length > 0) return <ChoiceForm vaultName={name} vaultPath={vaultPath} choice={direct} />;
     return <List isLoading />;
   }
 
@@ -132,7 +132,7 @@ function Choices({
         <Action.Push
           title="Fill in"
           icon={Icon.Pencil}
-          target={<ChoiceForm vaultName={name} choice={choice} />}
+          target={<ChoiceForm vaultName={name} vaultPath={vaultPath} choice={choice} />}
           onPush={() => visitItem(choice)}
         />
       );

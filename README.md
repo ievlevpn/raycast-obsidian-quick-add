@@ -4,6 +4,7 @@ Run your [QuickAdd](https://github.com/chhoumann/quickadd) choices from Raycast.
 
 - Answer whatever the choice asks — text, forms, pickers, dates, confirmations — in Raycast (full mode, below).
 - Captures run with Obsidian in the background; choices set to open their note bring Obsidian forward.
+- Type `[[` in any text field to pick a note and insert `[[Note]]`, as in Obsidian.
 - New and changed choices show up automatically; the extension reads QuickAdd's settings each time it opens.
 
 ## Full and basic mode

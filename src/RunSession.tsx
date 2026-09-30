@@ -155,7 +155,8 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
     await close();
   }
 
-  if (phase.kind === "basic") return <BasicFallback vaultName={vaultName} choice={choice} reason={phase.reason} />;
+  if (phase.kind === "basic")
+    return <BasicFallback vaultName={vaultName} vaultPath={vaultPath} choice={choice} reason={phase.reason} />;
   if (phase.kind === "failed") {
     return <Detail navigationTitle={choice.title} markdown={`# QuickAdd run failed\n\n${phase.message}`} />;
   }
@@ -231,6 +232,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       <FormPrompt
         key={current.requestId}
         title={title}
+        vaultPath={vaultPath}
         specs={specs}
         onSubmit={(values) => answer(current, replyForForm(prompt, specs, values))}
         onCancel={cancel}
@@ -250,12 +252,22 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
   );
 }
 
-function BasicFallback({ vaultName, choice, reason }: { vaultName: string; choice: Choice; reason: BasicReason }) {
+function BasicFallback({
+  vaultName,
+  vaultPath,
+  choice,
+  reason,
+}: {
+  vaultName: string;
+  vaultPath: string;
+  choice: Choice;
+  reason: BasicReason;
+}) {
   useEffect(() => {
     showToast({ style: Toast.Style.Failure, title: "Full QuickAdd support is off", message: REASON_TEXT[reason] });
     if (choice.fields.length === 0) void runChoice(vaultName, choice, []);
   }, []);
   if (choice.fields.length > 0)
-    return <ChoiceForm vaultName={vaultName} choice={choice} notice={REASON_TEXT[reason]} />;
+    return <ChoiceForm vaultName={vaultName} vaultPath={vaultPath} choice={choice} notice={REASON_TEXT[reason]} />;
   return <Detail isLoading navigationTitle={choice.title} markdown="Sending to QuickAdd…" />;
 }
