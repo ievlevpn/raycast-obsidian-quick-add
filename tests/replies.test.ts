@@ -188,6 +188,18 @@ describe("validateForm", () => {
   });
 });
 
+describe("number ranges", () => {
+  it("keeps QuickAdd's min/max and enforces them", () => {
+    const [count] = specsFromQuickAddFields([{ id: "count", type: "number", numericConfig: { min: 0, max: 10 } }]);
+    expect(count).toMatchObject({ kind: "number", min: 0, max: 10 });
+    expect(validateForm([count], { f0: "42" })).toEqual({ 0: "Must be between 0 and 10" });
+    expect(validateForm([count], { f0: "-1" })).toEqual({ 0: "Must be between 0 and 10" });
+    expect(validateForm([count], { f0: "7" })).toEqual({});
+    const [floor] = specsFromQuickAddFields([{ id: "n", type: "slider", numericConfig: { min: 1 } }]);
+    expect(validateForm([floor], { f0: "0" })).toEqual({ 0: "Must be at least 1" });
+  });
+});
+
 describe("helpers", () => {
   it("formats dates for QuickAdd", () => {
     expect(dateReply(new Date(2026, 0, 5, 9, 30), false)).toBe("@date:2026-01-05");

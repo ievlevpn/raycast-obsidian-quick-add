@@ -15,6 +15,7 @@ export interface QaField {
   options?: string[];
   displayOptions?: string[];
   dateFormat?: string;
+  numericConfig?: { min?: number; max?: number; step?: number };
   optional?: boolean;
   suggesterConfig?: { allowCustomInput?: boolean; multiSelect?: boolean };
 }
@@ -52,6 +53,8 @@ export interface FieldSpec {
   allowCustom?: boolean;
   optional: boolean;
   withTime?: boolean;
+  min?: number;
+  max?: number;
 }
 
 /** Raycast form values, keyed `f<index>` and `f<index>-custom`. */
@@ -91,7 +94,7 @@ function fieldSpec(field: QaField): FieldSpec {
       return { ...base, kind: "date", withTime: hasTime(field.dateFormat) };
     case "number":
     case "slider":
-      return { ...base, kind: "number" };
+      return { ...base, kind: "number", min: field.numericConfig?.min, max: field.numericConfig?.max };
     case "checkbox":
       return { ...base, kind: "checkbox", defaultValue: field.defaultValue === "true", optional: true };
     default:
@@ -195,10 +198,21 @@ export function validateForm(specs: FieldSpec[], values: FormValues): Record<num
   specs.forEach((spec, index) => {
     const value = fieldValue(spec, values, index);
     const empty = Array.isArray(value) ? value.length === 0 : value.trim() === "";
-    if (spec.kind === "number" && !empty && Number.isNaN(Number(value))) errors[index] = "Must be a number";
-    else if (empty && !spec.optional && spec.kind !== "checkbox") errors[index] = "Required";
+    if (spec.kind === "number" && !empty) {
+      const range = rangeError(Number(value), spec.min, spec.max);
+      if (range) errors[index] = range;
+    } else if (empty && !spec.optional && spec.kind !== "checkbox") errors[index] = "Required";
   });
   return errors;
+}
+
+function rangeError(value: number, min: number | undefined, max: number | undefined): string | undefined {
+  if (Number.isNaN(value)) return "Must be a number";
+  const below = min !== undefined && value < min;
+  const above = max !== undefined && value > max;
+  if (!below && !above) return undefined;
+  if (min !== undefined && max !== undefined) return `Must be between ${min} and ${max}`;
+  return min !== undefined ? `Must be at least ${min}` : `Must be at most ${max}`;
 }
 
 export function replyForForm(prompt: QaPrompt, specs: FieldSpec[], values: FormValues): unknown {

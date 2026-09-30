@@ -29,6 +29,23 @@ Select a choice, press `⌘⇧Q` (**Create Quicklink**), and save. In Raycast se
 
 ## Limitations
 
-- Templater's own prompts (`tp.system.prompt` and similar) always appear in Obsidian.
+- Templater's own prompts (`tp.system.prompt` and similar) and dialogs opened by scripts appear in Obsidian. In full mode Raycast waits for them; after a few seconds it says so and offers **Open Obsidian** (⌘O).
+- QuickAdd sends file-picker and field-suggest inputs without a list of options, so they are plain text fields in Raycast.
 - `{{selected}}` and `{{linkcurrent}}` come from Obsidian's active editor, not from Raycast.
 - In basic mode, Raycast can't see whether QuickAdd succeeded; errors appear in Obsidian.
+
+## Development
+
+```sh
+npm install
+npm test          # unit tests
+npm run dev       # load the extension in Raycast
+```
+
+`e2e-vault/` is a small vault with one QuickAdd choice per prompt kind, for trying the extension by hand. Its QuickAdd plugin code is not committed; copy it from a vault that has QuickAdd installed, then open the folder in Obsidian (Open folder as vault) and trust its plugins:
+
+```sh
+scripts/setup-e2e-vault.sh /path/to/some-vault/.obsidian/plugins/quickadd
+```
+
+After editing the fixture's QuickAdd settings, reload the plugin: `obsidian-cli vault=e2e-vault plugin:reload id=quickadd`. Reset the vault with `git checkout -- e2e-vault && git clean -fd e2e-vault`.
