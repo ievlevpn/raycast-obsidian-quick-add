@@ -26,7 +26,10 @@ describe("parseToken", () => {
   });
 
   it("turns comma lists into options", () => {
-    expect(parseToken("red, green ,blue")).toMatchObject({ key: "red, green ,blue", options: ["red", "green", "blue"] });
+    expect(parseToken("red, green ,blue")).toMatchObject({
+      key: "red, green ,blue",
+      options: ["red", "green", "blue"],
+    });
   });
 });
 

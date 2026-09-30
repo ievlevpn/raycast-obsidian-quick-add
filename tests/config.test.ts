@@ -48,7 +48,10 @@ describe("findQuickAddVaults", () => {
     const withQa = makeVault([]);
     const withoutQa = mkdtempSync(join(tmpdir(), "qa-plain-"));
     const json = join(mkdtempSync(join(tmpdir(), "qa-obs-")), "obsidian.json");
-    write(json, JSON.stringify({ vaults: { a: { path: withQa }, b: { path: withoutQa }, c: { path: "/nonexistent/x" } } }));
+    write(
+      json,
+      JSON.stringify({ vaults: { a: { path: withQa }, b: { path: withoutQa }, c: { path: "/nonexistent/x" } } }),
+    );
     expect(findQuickAddVaults(json)).toEqual([withQa]);
   });
 
@@ -113,7 +116,13 @@ describe("loadChoices templates", () => {
 
   it("asks for the file name when the file-name format is disabled (Person)", () => {
     const vault = makeVault(
-      [template({ name: "Person", templatePath: "Templates/person_template.md", fileNameFormat: { enabled: false, format: "" } })],
+      [
+        template({
+          name: "Person",
+          templatePath: "Templates/person_template.md",
+          fileNameFormat: { enabled: false, format: "" },
+        }),
+      ],
       { "Templates/person_template.md": "{{VALUE:affiliation}} {{VALUE:email}} {{VALUE:website}}" },
     );
     const [t] = loadChoices(vault);
