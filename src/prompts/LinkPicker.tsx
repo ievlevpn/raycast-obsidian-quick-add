@@ -31,6 +31,7 @@ export default function LinkPicker({
 
   return (
     <List isLoading={targets === undefined} navigationTitle="Link to Note" searchBarPlaceholder="Search notes">
+      <List.EmptyView icon={Icon.Document} title="No matching notes" />
       {(targets ?? []).map((target) => (
         <List.Item
           key={target.id}

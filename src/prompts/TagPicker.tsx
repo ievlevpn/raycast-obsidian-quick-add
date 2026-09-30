@@ -38,6 +38,7 @@ export default function TagPicker({
       onSearchTextChange={setSearch}
       filtering={{ keepSectionOrder: true }}
     >
+      <List.EmptyView icon={Icon.Hashtag} title="No tags yet" description="Type a tag name to add a new one." />
       <List.Section title="Tags">
         {(tags ?? []).map((entry) => (
           <List.Item

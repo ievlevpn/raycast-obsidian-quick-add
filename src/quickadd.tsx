@@ -45,7 +45,7 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
     );
   }
   return (
-    <List navigationTitle="Choose Vault">
+    <List searchBarPlaceholder="Choose a vault">
       {vaults.map((path) => (
         <List.Item
           key={path}
@@ -152,6 +152,11 @@ function Choices({
 
   return (
     <List searchBarPlaceholder="Search QuickAdd choices">
+      <List.EmptyView
+        icon={Icon.Plus}
+        title="No QuickAdd choices"
+        description="Add choices in Obsidian under Settings → QuickAdd."
+      />
       {mode.mode === "basic" ? (
         <List.Section title="Basic Mode">
           <List.Item
