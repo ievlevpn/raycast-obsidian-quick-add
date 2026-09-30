@@ -1,11 +1,20 @@
 import { Action, ActionPanel, Form, Icon } from "@raycast/api";
 import { useState } from "react";
+import { isLoneValue } from "./parse";
 import { runChoice } from "./run";
 import { Choice } from "./types";
 
-export default function ChoiceForm({ vaultName, choice }: { vaultName: string; choice: Choice }) {
+export default function ChoiceForm({
+  vaultName,
+  choice,
+  notice,
+}: {
+  vaultName: string;
+  choice: Choice;
+  notice?: string;
+}) {
   const [errors, setErrors] = useState<Record<number, string | undefined>>({});
-  const loneValue = choice.fields.length === 1 && choice.fields[0].key === "value" && !choice.fields[0].options;
+  const loneValue = isLoneValue(choice.fields);
 
   async function submit(formValues: Record<string, string>) {
     const values = choice.fields.map((_, index) => formValues[`f${index}`] ?? "");
@@ -37,6 +46,7 @@ export default function ChoiceForm({ vaultName, choice }: { vaultName: string; c
         </ActionPanel>
       }
     >
+      {notice ? <Form.Description key="notice" title="Basic Mode" text={notice} /> : null}
       {choice.notes.map((note, index) => (
         <Form.Description key={`note-${index}`} text={note} />
       ))}

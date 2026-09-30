@@ -1,16 +1,14 @@
 import { showHUD, showToast, Toast } from "@raycast/api";
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { openUri } from "./open";
 import { Choice } from "./types";
-import { buildQuickAddUri, collectVars } from "./uri";
+import { buildQuickAddUri, collectVars, runsInBackground } from "./uri";
 
-const execFileAsync = promisify(execFile);
-
+/** Basic mode: run a choice through the obsidian://quickadd URI. */
 export async function runChoice(vaultName: string, choice: Choice, values: string[]): Promise<void> {
   const uri = buildQuickAddUri(vaultName, choice.name, collectVars(choice.fields, values));
-  const background = choice.type === "Capture";
+  const background = runsInBackground(choice);
   try {
-    await execFileAsync("open", background ? ["-g", uri] : [uri]);
+    await openUri(uri, background);
   } catch (error) {
     const stderr = (error as { stderr?: string }).stderr;
     await showToast({ style: Toast.Style.Failure, title: "Could not open Obsidian", message: stderr || String(error) });

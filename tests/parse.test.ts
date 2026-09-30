@@ -62,3 +62,53 @@ describe("parseFields", () => {
     expect(parseFields(["<% tp.date.now() %> {{value}} {{DATE}}"]).hasObsidianPrompts).toBe(false);
   });
 });
+
+import { isLoneValue } from "../src/parse";
+
+describe("QuickAdd token grammar", () => {
+  it("reads modifiers on plain value tokens", () => {
+    const [f] = parseFields(["{{VALUE|label:Note|default:hi}}"]).fields;
+    expect(f).toMatchObject({ key: "value", label: "Note", defaultValue: "hi" });
+    expect(parseFields(["{{NAME|optional}}"]).fields[0]).toMatchObject({ key: "value", optional: true });
+  });
+
+  it("does not treat {{NAME:…}} as a value token", () => {
+    expect(keys(["{{NAME:foo}}"])).toEqual([]);
+  });
+
+  it("uses |name: as the variable key", () => {
+    expect(parseFields(["{{VALUE:red,green|name:colour}}"]).fields[0]).toMatchObject({
+      key: "colour",
+      rawKey: "colour",
+      label: "colour",
+      options: ["red", "green"],
+    });
+  });
+
+  it("leaves |custom and |multi option lists to Obsidian", () => {
+    for (const token of ["{{VALUE:a,b|custom}}", "{{VALUE:a,b|multi}}"]) {
+      const parsed = parseFields([token]);
+      expect(parsed.fields).toEqual([]);
+      expect(parsed.hasObsidianPrompts).toBe(true);
+    }
+  });
+
+  it("dedupes keys case-insensitively and ignores tokens spanning lines", () => {
+    expect(keys(["{{VALUE:Title}} {{value:title}}"])).toEqual(["Title"]);
+    expect(keys(["{{VALUE:line\nbreak}}"])).toEqual([]);
+  });
+
+  it("flags more tokens that prompt in Obsidian", () => {
+    for (const text of ["{{FILE:notes}}", "{{MVALUE}}", "{{TEMPLATE:t.md}}", "<% tp.system.multi_suggester(a, b) %>"]) {
+      expect(parseFields([text]).hasObsidianPrompts).toBe(true);
+    }
+  });
+});
+
+describe("isLoneValue", () => {
+  it("is true only for a single plain value field with the default label", () => {
+    expect(isLoneValue(parseFields(["{{VALUE}}"]).fields)).toBe(true);
+    expect(isLoneValue([{ key: "value", rawKey: "value", label: "File name", optional: false }])).toBe(false);
+    expect(isLoneValue(parseFields(["{{VALUE}} {{VALUE:x}}"]).fields)).toBe(false);
+  });
+});

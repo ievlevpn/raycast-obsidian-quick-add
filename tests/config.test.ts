@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { describe, expect, it } from "vitest";
@@ -176,5 +176,57 @@ describe("loadChoices structure", () => {
   it("warns on duplicate names", () => {
     const choices = loadChoices(makeVault([capture({ id: "a" }), capture({ id: "b" })]));
     for (const c of choices) expect(c.notes.join(" ")).toMatch(/Another choice is also named "Thought"/);
+  });
+});
+
+describe("loadChoices robustness", () => {
+  it("treats a template path that is a folder as missing", () => {
+    const vault = makeVault([template({ templatePath: "Templates" })]);
+    mkdirSync(join(vault, "Templates"), { recursive: true });
+    const [t] = loadChoices(vault);
+    expect(t.notes.join(" ")).toMatch(/Template file not found/);
+  });
+
+  it("ignores non-string config values", () => {
+    const [c] = loadChoices(makeVault([capture({ captureTo: 42, format: { enabled: true, format: 7 } })]));
+    expect(c.fields.map((f) => f.key)).toEqual(["value"]);
+  });
+
+  it("keeps the list when one choice cannot be read", () => {
+    const vault = makeVault([template(), capture({ id: "c2" })], { "Templates/math_idea.md": "{{VALUE:x}}" });
+    chmodSync(join(vault, "Templates/math_idea.md"), 0o000);
+    const choices = loadChoices(vault);
+    expect(choices.map((c) => c.id)).toEqual(["t1", "c2"]);
+    expect(choices[0].notes.join(" ")).toMatch(/Could not read this choice's settings/);
+    expect(choices[0].promptsInObsidian).toBe(true);
+  });
+});
+
+describe("loadChoices prompts in Obsidian", () => {
+  const prompts = (choices: unknown[], files: Record<string, string> = {}) => loadChoices(makeVault(choices, files))[0];
+
+  it("is false for a plain capture and true for pickers", () => {
+    expect(prompts([capture()]).promptsInObsidian).toBe(false);
+    expect(prompts([capture({ captureTo: "" })]).promptsInObsidian).toBe(true);
+    expect(prompts([capture({ captureTo: "property:type=draft" })]).promptsInObsidian).toBe(true);
+    expect(
+      prompts([capture({ createFileIfItDoesntExist: { enabled: true, createWithTemplate: true, template: "T.md" } })])
+        .promptsInObsidian,
+    ).toBe(true);
+    expect(
+      prompts([template({ folder: { enabled: true, folders: [] } })], { "Templates/math_idea.md": "" })
+        .promptsInObsidian,
+    ).toBe(true);
+  });
+
+  it("detects a capture target that is an existing folder", () => {
+    const vault = makeVault([capture({ captureTo: "Inbox" })]);
+    mkdirSync(join(vault, "Inbox"));
+    expect(loadChoices(vault)[0].notes).toContain(OBSIDIAN_PROMPTS_NOTE);
+  });
+
+  it("reads openFile", () => {
+    expect(prompts([template({ openFile: true })], { "Templates/math_idea.md": "" }).openFile).toBe(true);
+    expect(prompts([capture()]).openFile).toBe(false);
   });
 });

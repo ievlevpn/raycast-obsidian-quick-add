@@ -20,4 +20,8 @@ export interface Choice {
   fields: Field[];
   /** Messages shown at the top of the form. */
   notes: string[];
+  /** QuickAdd opens the resulting note (the choice's `openFile` setting). */
+  openFile: boolean;
+  /** Basic mode: QuickAdd will still ask something inside Obsidian. */
+  promptsInObsidian: boolean;
 }

@@ -50,3 +50,33 @@ describe("collectVars", () => {
     expect(collectVars([field("value")], [])).toEqual({ value: "" });
   });
 });
+
+import { buildOpenUri, runsInBackground } from "../src/uri";
+import { Choice } from "../src/types";
+
+const choice = (over: Partial<Choice>): Choice => ({
+  id: "i",
+  name: "n",
+  title: "n",
+  type: "Capture",
+  fields: [],
+  notes: [],
+  openFile: false,
+  promptsInObsidian: false,
+  ...over,
+});
+
+describe("runsInBackground", () => {
+  it("runs quiet captures in the background and everything else in front", () => {
+    expect(runsInBackground(choice({}))).toBe(true);
+    expect(runsInBackground(choice({ promptsInObsidian: true }))).toBe(false);
+    expect(runsInBackground(choice({ type: "Template" }))).toBe(false);
+  });
+});
+
+describe("buildOpenUri", () => {
+  it("opens a vault, or a file in it", () => {
+    expect(buildOpenUri("my vault")).toBe("obsidian://open?vault=my%20vault");
+    expect(buildOpenUri("v", "People/A & B.md")).toBe("obsidian://open?vault=v&file=People%2FA%20%26%20B.md");
+  });
+});

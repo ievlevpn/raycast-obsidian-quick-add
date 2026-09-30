@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import { homedir } from "os";
 import { basename, join } from "path";
 import { parseFields } from "./parse";
@@ -9,19 +9,6 @@ export const QUICKADD_DATA = ".obsidian/plugins/quickadd/data.json";
 export const OBSIDIAN_PROMPTS_NOTE = "Some prompts will appear in Obsidian.";
 
 export class ConfigError extends Error {}
-
-interface RawChoice {
-  id?: unknown;
-  name?: unknown;
-  type?: unknown;
-  choices?: unknown;
-  format?: { enabled?: boolean; format?: string };
-  captureTo?: string;
-  captureToActiveFile?: boolean;
-  fileNameFormat?: { enabled?: boolean; format?: string };
-  templatePath?: string;
-  folder?: { enabled?: boolean; folders?: string[]; chooseWhenCreatingNote?: boolean; chooseFromSubfolders?: boolean };
-}
 
 export function findQuickAddVaults(obsidianJsonPath = DEFAULT_OBSIDIAN_JSON): string[] {
   let registry: { vaults?: Record<string, { path?: unknown }> };
@@ -58,52 +45,88 @@ export function loadChoices(vaultPath: string): Choice[] {
   return choices;
 }
 
+interface RawChoice {
+  id?: unknown;
+  name?: unknown;
+  type?: unknown;
+  choices?: unknown;
+  format?: { enabled?: unknown; format?: unknown };
+  captureTo?: unknown;
+  captureToActiveFile?: unknown;
+  createFileIfItDoesntExist?: { enabled?: unknown; createWithTemplate?: unknown };
+  fileNameFormat?: { enabled?: unknown; format?: unknown };
+  templatePath?: unknown;
+  folder?: { enabled?: unknown; folders?: unknown; chooseWhenCreatingNote?: unknown; chooseFromSubfolders?: unknown };
+  openFile?: unknown;
+}
+
+const str = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
+
 function flatten(raws: unknown[], parentTitle: string | undefined, vaultPath: string, out: Choice[]) {
   for (const raw of raws as RawChoice[]) {
     if (typeof raw?.id !== "string" || typeof raw.name !== "string") continue;
     const title = parentTitle ? `${parentTitle} › ${raw.name}` : raw.name;
     if (raw.type === "Multi") {
       flatten(Array.isArray(raw.choices) ? raw.choices : [], title, vaultPath, out);
-    } else {
+      continue;
+    }
+    try {
       out.push(buildChoice(raw as RawChoice & { id: string; name: string }, title, vaultPath));
+    } catch (error) {
+      out.push({
+        id: raw.id,
+        name: raw.name,
+        title,
+        type: str(raw.type) ?? "Unknown",
+        fields: [],
+        notes: [`Could not read this choice's settings: ${(error as Error).message}`, OBSIDIAN_PROMPTS_NOTE],
+        openFile: false,
+        promptsInObsidian: true,
+      });
     }
   }
 }
 
 function buildChoice(raw: RawChoice & { id: string; name: string }, title: string, vaultPath: string): Choice {
-  const type = typeof raw.type === "string" ? raw.type : "Unknown";
+  const type = str(raw.type) ?? "Unknown";
   const texts: string[] = [];
   const notes: string[] = [];
   let obsidianPrompts = false;
   let fileNameFromValue = false;
 
   if (type === "Capture") {
-    texts.push(raw.format?.enabled && raw.format.format ? raw.format.format : "{{value}}");
-    if (!raw.captureToActiveFile && raw.captureTo) {
-      texts.push(raw.captureTo);
-      if (raw.captureTo.startsWith("#") || raw.captureTo.endsWith("/")) obsidianPrompts = true;
+    const format = raw.format?.enabled === true ? str(raw.format.format) : undefined;
+    texts.push(format || "{{value}}");
+    if (raw.captureToActiveFile !== true) {
+      const target = str(raw.captureTo)?.trim() ?? "";
+      if (target) texts.push(target);
+      if (captureTargetPicks(vaultPath, target)) obsidianPrompts = true;
     }
+    const create = raw.createFileIfItDoesntExist;
+    if (create?.enabled === true && create.createWithTemplate === true) obsidianPrompts = true;
   } else if (type === "Template") {
-    if (raw.fileNameFormat?.enabled && raw.fileNameFormat.format) {
-      texts.push(raw.fileNameFormat.format);
+    const format = raw.fileNameFormat?.enabled === true ? str(raw.fileNameFormat.format) : undefined;
+    if (format) {
+      texts.push(format);
     } else {
       texts.push("{{value}}");
       fileNameFromValue = true;
     }
-    if (raw.templatePath) {
-      const body = readTemplate(vaultPath, raw.templatePath);
+    const templatePath = str(raw.templatePath);
+    if (templatePath) {
+      const body = readTemplate(vaultPath, templatePath);
       if (body === undefined) {
-        notes.push(`Template file not found: ${raw.templatePath}. Only the file name fields are asked here.`);
+        notes.push(`Template file not found: ${templatePath}. Only the file name fields are asked here.`);
       } else {
         texts.push(body);
       }
     }
     const folder = raw.folder;
-    if (
-      folder?.enabled &&
-      (folder.chooseWhenCreatingNote || folder.chooseFromSubfolders || (folder.folders?.length ?? 0) > 1)
-    ) {
-      obsidianPrompts = true;
+    if (folder?.enabled === true) {
+      const folders = Array.isArray(folder.folders) ? folder.folders : [];
+      if (folder.chooseWhenCreatingNote === true || folder.chooseFromSubfolders === true || folders.length !== 1) {
+        obsidianPrompts = true;
+      }
     }
   } else {
     obsidianPrompts = true;
@@ -115,15 +138,49 @@ function buildChoice(raw: RawChoice & { id: string; name: string }, title: strin
     const valueField = parsed.fields.find((field) => field.key === "value");
     if (valueField) valueField.label = "File name";
   }
-  if (obsidianPrompts || parsed.hasObsidianPrompts) notes.push(OBSIDIAN_PROMPTS_NOTE);
+  const promptsInObsidian = obsidianPrompts || parsed.hasObsidianPrompts;
+  if (promptsInObsidian) notes.push(OBSIDIAN_PROMPTS_NOTE);
 
-  return { id: raw.id, name: raw.name, title, type, fields: parsed.fields, notes };
+  return {
+    id: raw.id,
+    name: raw.name,
+    title,
+    type,
+    fields: parsed.fields,
+    notes,
+    openFile: raw.openFile === true,
+    promptsInObsidian,
+  };
+}
+
+/** QuickAdd shows a file picker for empty, #tag, property:, folder/ and existing-folder targets. */
+function captureTargetPicks(vaultPath: string, target: string): boolean {
+  if (target === "") return true;
+  if (target.startsWith("#") || target.endsWith("/") || /^property:/i.test(target)) return true;
+  if (target.includes("{{")) return false;
+  return isDirectory(join(vaultPath, target));
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
 }
 
 function readTemplate(vaultPath: string, templatePath: string): string | undefined {
   for (const candidate of [templatePath, `${templatePath}.md`]) {
     const full = join(vaultPath, candidate);
-    if (existsSync(full)) return readFileSync(full, "utf8");
+    if (isFile(full)) return readFileSync(full, "utf8");
   }
   return undefined;
 }

@@ -1,4 +1,4 @@
-import { Field } from "./types";
+import { Choice, Field } from "./types";
 
 /** Query parameter naming the vault; confirmed by the URI spike (docs/superpowers/notes). */
 export const VAULT_PARAM = "vault";
@@ -19,4 +19,15 @@ export function buildQuickAddUri(vaultName: string, choiceName: string, vars: Re
     params.push(`value-${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
   }
   return `obsidian://quickadd?${params.join("&")}`;
+}
+
+/** Basic mode: quiet captures stay in the background; anything that may prompt in Obsidian comes forward. */
+export function runsInBackground(choice: Choice): boolean {
+  return choice.type === "Capture" && !choice.promptsInObsidian;
+}
+
+export function buildOpenUri(vaultName: string, file?: string): string {
+  const params = [`vault=${encodeURIComponent(vaultName)}`];
+  if (file) params.push(`file=${encodeURIComponent(file)}`);
+  return `obsidian://open?${params.join("&")}`;
 }
