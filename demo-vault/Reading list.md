@@ -1,4 +1,4 @@
 # Reading list
 
-- [ ] Thinking in Systems — Donella Meadows (Book)
+- [ ] Visual Complex Analysis — Tristan Needham (Book)
 - [x] The Design of Everyday Things — Don Norman (Book)
