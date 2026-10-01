@@ -3,6 +3,7 @@ import {
   ActionPanel,
   closeMainWindow,
   Detail,
+  Form,
   Icon,
   Keyboard,
   popToRoot,
@@ -170,10 +171,11 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
     };
   }, []);
 
-  // After a few seconds with nothing to show, QuickAdd is probably asking something in Obsidian itself.
+  // After a few seconds with nothing to show, say why: still starting (Obsidian or the vault may be opening),
+  // or QuickAdd is probably asking something in Obsidian itself.
   useEffect(() => {
     setSlow(false);
-    if (phase.kind !== "waiting" || prompts.length > 0) return;
+    if ((phase.kind !== "starting" && phase.kind !== "waiting") || prompts.length > 0) return;
     const timer = setTimeout(() => setSlow(true), 3000);
     return () => clearTimeout(timer);
   }, [phase.kind, prompts.length]);
@@ -209,20 +211,15 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
 
   const current = prompts[0];
   if (!current) {
+    // An empty, loading form rather than a text page: most prompts are forms, so the first one appears
+    // in place instead of flashing a different layout.
     return (
-      <Detail
+      <Form
         isLoading
         navigationTitle={choice.title}
-        markdown={
-          phase.kind === "starting"
-            ? "Starting QuickAdd…"
-            : slow
-              ? "Waiting for QuickAdd…\n\nQuickAdd may be asking something in Obsidian itself (for example a Templater prompt). Answer it there, or cancel the run."
-              : "Waiting for QuickAdd…"
-        }
         actions={
           <ActionPanel>
-            {slow ? (
+            {slow && phase.kind === "waiting" ? (
               <Action
                 title="Open Obsidian"
                 icon={Icon.AppWindow}
@@ -237,7 +234,20 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
             <CancelAction onCancel={cancel} />
           </ActionPanel>
         }
-      />
+      >
+        {slow && phase.kind === "starting" ? (
+          <Form.Description
+            title="Starting"
+            text="Starting QuickAdd in Obsidian… This can take a few seconds if Obsidian or the vault has to open first."
+          />
+        ) : null}
+        {slow && phase.kind === "waiting" ? (
+          <Form.Description
+            title="Waiting"
+            text="QuickAdd may be asking something in Obsidian itself (for example a Templater prompt). Answer it there, or cancel the run."
+          />
+        ) : null}
+      </Form>
     );
   }
 
