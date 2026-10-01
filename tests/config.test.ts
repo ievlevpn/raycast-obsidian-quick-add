@@ -250,3 +250,42 @@ describe("loadChoices prompts in Obsidian", () => {
     expect(prompts([capture()]).openFile).toBe(false);
   });
 });
+
+describe("loadChoices current note", () => {
+  const first = (choices: unknown[], files: Record<string, string> = {}) => loadChoices(makeVault(choices, files))[0];
+
+  it("is not used by plain choices", () => {
+    expect(first([capture()]).currentNote).toBe("none");
+    expect(first([template()], { "Templates/math_idea.md": "{{VALUE:x}}" }).currentNote).toBe("none");
+  });
+
+  it("is optional for 'append link' and {{selected}}", () => {
+    const appendLink = { enabled: true, placement: "replaceSelection", requireActiveFile: false };
+    expect(first([template({ appendLink })], { "Templates/math_idea.md": "" }).currentNote).toBe("optional");
+    expect(first([capture({ appendLink: true })]).currentNote).toBe("optional");
+    expect(first([capture({ format: { enabled: true, format: "> {{SELECTED}}" } })]).currentNote).toBe("optional");
+  });
+
+  it("is required for active-file captures, required 'append link' and the …CURRENT tokens", () => {
+    expect(first([capture({ captureToActiveFile: true })]).currentNote).toBe("required");
+    const appendLink = { enabled: true, placement: "replaceSelection", requireActiveFile: true };
+    expect(first([template({ appendLink })], { "Templates/math_idea.md": "" }).currentNote).toBe("required");
+    expect(first([capture({ format: { enabled: true, format: "- {{LINKCURRENT}}" } })]).currentNote).toBe("required");
+    expect(first([template()], { "Templates/math_idea.md": "in {{folderCurrent}}" }).currentNote).toBe("required");
+    expect(first([template()], { "Templates/math_idea.md": "{{FILENAMECURRENT}}" }).currentNote).toBe("required");
+  });
+
+  it("treats the …CURRENT tokens as optional when 'append link' doesn't require an active file (QuickAdd's rule)", () => {
+    const optionalLink = { enabled: true, placement: "replaceSelection", requireActiveFile: false };
+    const requiredLink = { ...optionalLink, requireActiveFile: true };
+    const body = { "Templates/math_idea.md": "from {{LINKCURRENT}}" };
+    expect(first([template({ appendLink: optionalLink })], body).currentNote).toBe("optional");
+    expect(first([template({ appendLink: requiredLink })], body).currentNote).toBe("required");
+    expect(first([template({ appendLink: { ...optionalLink, enabled: false } })], body).currentNote).toBe("required");
+  });
+
+  it("tells basic mode that the note open in Obsidian is used", () => {
+    expect(first([capture({ captureToActiveFile: true })]).notes.join(" ")).toMatch(/note open in Obsidian/);
+    expect(first([capture()]).notes.join(" ")).not.toMatch(/note open in Obsidian/);
+  });
+});

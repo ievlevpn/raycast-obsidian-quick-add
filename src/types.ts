@@ -26,4 +26,8 @@ export interface Choice {
   promptsInObsidian: boolean;
   /** Another choice has the same name, so basic mode (which runs choices by name) can't tell them apart. */
   sharedName: boolean;
+  /** How the choice uses Obsidian's current (active) note: not at all, optionally, or necessarily. */
+  currentNote: CurrentNoteUse;
 }
+
+export type CurrentNoteUse = "none" | "optional" | "required";

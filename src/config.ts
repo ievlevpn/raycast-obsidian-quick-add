@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from "fs";
 import { homedir } from "os";
 import { basename, join } from "path";
 import { parseFields } from "./parse";
-import { Choice } from "./types";
+import { Choice, CurrentNoteUse } from "./types";
 
 export const DEFAULT_OBSIDIAN_JSON = join(homedir(), "Library/Application Support/obsidian/obsidian.json");
 export const QUICKADD_DATA = ".obsidian/plugins/quickadd/data.json";
@@ -80,6 +80,7 @@ interface RawChoice {
   templatePath?: unknown;
   folder?: { enabled?: unknown; folders?: unknown; chooseWhenCreatingNote?: unknown; chooseFromSubfolders?: unknown };
   openFile?: unknown;
+  appendLink?: unknown;
 }
 
 const str = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
@@ -105,6 +106,7 @@ function flatten(raws: unknown[], parentTitle: string | undefined, vaultPath: st
         openFile: false,
         promptsInObsidian: true,
         sharedName: false,
+        currentNote: "none",
       });
     }
   }
@@ -163,6 +165,8 @@ function buildChoice(raw: RawChoice & { id: string; name: string }, title: strin
   }
   const promptsInObsidian = obsidianPrompts || parsed.hasObsidianPrompts;
   if (promptsInObsidian) notes.push(OBSIDIAN_PROMPTS_NOTE);
+  const currentNote = currentNoteUse(raw, type, texts);
+  if (currentNote !== "none") notes.push(CURRENT_NOTE_NOTE);
 
   return {
     id: raw.id,
@@ -174,7 +178,33 @@ function buildChoice(raw: RawChoice & { id: string; name: string }, title: strin
     openFile: raw.openFile === true,
     promptsInObsidian,
     sharedName: false,
+    currentNote,
   };
+}
+
+const CURRENT_NOTE_NOTE = "Uses the note open in Obsidian as its current note.";
+
+/**
+ * QuickAdd takes the "current note" from Obsidian's active tab: for active-file captures, "append link", the
+ * {{LINKCURRENT}}/{{FILENAMECURRENT}}/{{FOLDERCURRENT}} tokens and {{selected}}. Like QuickAdd, the …CURRENT
+ * tokens may be left empty only when "append link" is on without "requires an active file"; otherwise a run
+ * without a current note fails.
+ */
+function currentNoteUse(raw: RawChoice, type: string, texts: string[]): CurrentNoteUse {
+  if (type !== "Capture" && type !== "Template") return "none";
+  if (type === "Capture" && raw.captureToActiveFile === true) return "required";
+  const link =
+    raw.appendLink && typeof raw.appendLink === "object"
+      ? (raw.appendLink as { enabled?: unknown; requireActiveFile?: unknown })
+      : { enabled: raw.appendLink === true, requireActiveFile: false };
+  const linkEnabled = link.enabled === true;
+  const linkRequired = linkEnabled && link.requireActiveFile === true;
+  if (texts.some((text) => /\{\{(?:LINKCURRENT|LINKSECTION|FILENAMECURRENT|FOLDERCURRENT)\b/i.test(text))) {
+    return linkEnabled && !linkRequired ? "optional" : "required";
+  }
+  if (linkEnabled) return linkRequired ? "required" : "optional";
+  if (texts.some((text) => /\{\{SELECTED\}\}/i.test(text))) return "optional";
+  return "none";
 }
 
 /** QuickAdd shows a file picker for empty, #tag, property:, folder/ and existing-folder targets. */

@@ -64,6 +64,7 @@ const choice = (over: Partial<Choice>): Choice => ({
   openFile: false,
   promptsInObsidian: false,
   sharedName: false,
+  currentNote: "none",
   ...over,
 });
 

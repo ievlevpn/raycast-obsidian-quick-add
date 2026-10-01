@@ -26,11 +26,17 @@ import {
 import { detectMode, REASON_TEXT } from "./mode";
 import BlockedView from "./BlockedView";
 import { runChoice } from "./run";
-import RunSession from "./RunSession";
+import { RunChoice } from "./RunSession";
 import { Choice } from "./types";
 import { basicRunBlocked } from "./uri";
 
-type LaunchContext = { vaultPath?: string; choiceId?: string; relaunched?: boolean };
+type LaunchContext = {
+  vaultPath?: string;
+  choiceId?: string;
+  relaunched?: boolean;
+  /** Current note chosen before a relaunch: a vault path, or "" for none. */
+  currentNote?: string;
+};
 
 export default function Command(props: LaunchProps<{ launchContext?: LaunchContext }>) {
   const context = props.launchContext ?? {};
@@ -40,7 +46,15 @@ export default function Command(props: LaunchProps<{ launchContext?: LaunchConte
   const registered = useMemo(() => registeredVaultPaths(), []);
 
   if (target)
-    return <Choices vaultPath={target} choiceId={context.choiceId} cliPath={cliPath} relaunched={context.relaunched} />;
+    return (
+      <Choices
+        vaultPath={target}
+        choiceId={context.choiceId}
+        cliPath={cliPath}
+        relaunched={context.relaunched}
+        currentNote={context.currentNote}
+      />
+    );
   if (vaults.length === 0) {
     return (
       <ErrorView message="No Obsidian vault with QuickAdd was found. Set the vault folder in the extension preferences." />
@@ -77,11 +91,13 @@ function Choices({
   choiceId,
   cliPath,
   relaunched,
+  currentNote,
 }: {
   vaultPath: string;
   choiceId?: string;
   cliPath?: string;
   relaunched?: boolean;
+  currentNote?: string;
 }) {
   const [checks, setChecks] = useState(0);
   // Refs survive Raycast dev mode's double mount, so a quicklink never runs its choice twice.
@@ -116,7 +132,14 @@ function Choices({
   if (direct) {
     if (mode.mode === "full")
       return (
-        <RunSession cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={direct} relaunched={relaunched} />
+        <RunChoice
+          cli={mode.cli}
+          vaultPath={vaultPath}
+          vaultName={name}
+          choice={direct}
+          relaunched={relaunched}
+          initialCurrentNote={currentNote === undefined ? undefined : currentNote || null}
+        />
       );
     const blocked = basicRunBlocked(direct);
     if (blocked) return <BlockedView choice={direct} reason={blocked} />;
@@ -131,7 +154,7 @@ function Choices({
         <Action.Push
           title="Run"
           icon={Icon.Play}
-          target={<RunSession cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={choice} />}
+          target={<RunChoice cli={mode.cli} vaultPath={vaultPath} vaultName={name} choice={choice} />}
           onPush={() => visitItem(choice)}
         />
       );

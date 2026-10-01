@@ -15,10 +15,12 @@ import { createDeeplink } from "@raycast/utils";
 import { useEffect, useRef, useState } from "react";
 import BlockedView from "./BlockedView";
 import ChoiceForm from "./ChoiceForm";
+import { closeTempTab, openTempTab, realTabDeps, TempTab } from "./currentNote";
 import { ensureVaultReady, realVaultDeps } from "./ensureVault";
 import { BasicReason, isBasicReason, REASON_TEXT } from "./mode";
 import { openUri } from "./open";
 import CancelAction from "./prompts/CancelAction";
+import CurrentNotePicker from "./prompts/CurrentNotePicker";
 import FormPrompt from "./prompts/FormPrompt";
 import MessagePrompt from "./prompts/MessagePrompt";
 import SuggesterPrompt from "./prompts/SuggesterPrompt";
@@ -34,19 +36,47 @@ type Phase =
   | { kind: "failed"; message: string }
   | { kind: "basic"; reason: BasicReason };
 
-type Props = { cli: string; vaultPath: string; vaultName: string; choice: Choice; relaunched?: boolean };
+type Props = {
+  cli: string;
+  vaultPath: string;
+  vaultName: string;
+  choice: Choice;
+  relaunched?: boolean;
+  /** For choices that use Obsidian's current note: a vault path, or null for "no current note". */
+  currentNote?: string | null;
+};
 
-export default function RunSession({ cli, vaultPath, vaultName, choice, relaunched }: Props) {
+/** Asks for the current note first when the choice uses one, then runs it. */
+export function RunChoice({ initialCurrentNote, ...props }: Props & { initialCurrentNote?: string | null }) {
+  const [currentNote, setCurrentNote] = useState<string | null | undefined>(initialCurrentNote);
+  if (props.choice.currentNote === "none") return <RunSession {...props} />;
+  if (currentNote === undefined) {
+    const vault = { vaultPath: props.vaultPath, vaultName: props.vaultName, cli: props.cli };
+    return <CurrentNotePicker choice={props.choice} vault={vault} onPick={setCurrentNote} />;
+  }
+  return <RunSession {...props} currentNote={currentNote} />;
+}
+
+export default function RunSession({ cli, vaultPath, vaultName, choice, relaunched, currentNote }: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
   const [prompts, setPrompts] = useState<PromptEvent[]>([]);
   const session = useRef<InteractiveSession | undefined>(undefined);
   const unmounted = useRef(false);
   const answered = useRef(new Set<string>());
   const cancelled = useRef(false);
+  const tempTab = useRef<TempTab | undefined>(undefined);
+
+  /** Close the temporary current-note tab, if it's still ours and untouched (at most once). */
+  async function releaseTab() {
+    const tab = tempTab.current;
+    tempTab.current = undefined;
+    if (tab) await closeTempTab(realTabDeps(cli, vaultName), tab).catch(() => "kept");
+  }
   const [slow, setSlow] = useState(false);
 
   function fail(reason: string, message: string) {
     void session.current?.abort();
+    void releaseTab();
     if (unmounted.current) return;
     if (isBasicReason(reason)) {
       setPhase({ kind: "basic", reason });
@@ -61,6 +91,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       setPrompts((queue) => [...queue, event]);
       return;
     }
+    await releaseTab();
     if (event.kind === "done") {
       if (choice.openFile && event.result.file) {
         try {
@@ -100,14 +131,27 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
         // itself, so reopen this choice through its deeplink (as a quicklink would); the vault is open
         // now, so the relaunched run starts right away.
         await openUri(
-          createDeeplink({ command: "quickadd", context: { vaultPath, choiceId: choice.id, relaunched: true } }),
+          createDeeplink({
+            command: "quickadd",
+            context: {
+              vaultPath,
+              choiceId: choice.id,
+              relaunched: true,
+              currentNote: currentNote === undefined ? undefined : (currentNote ?? ""),
+            },
+          }),
         );
         return;
+      }
+      if (currentNote !== undefined) {
+        // QuickAdd takes the current note from Obsidian's active tab: make that the chosen note, or nothing.
+        tempTab.current = await openTempTab(realTabDeps(cli, vaultName), currentNote);
+        if (stopped()) return releaseTab();
       }
       const started = await startSession(cli, vaultName, choice.id);
       if (stopped()) {
         if (started.ok) await started.session.abort();
-        return;
+        return releaseTab();
       }
       if (!started.ok) return fail(started.reason, started.message);
       session.current = started.session;
@@ -122,6 +166,7 @@ export default function RunSession({ cli, vaultPath, vaultName, choice, relaunch
       active = false;
       unmounted.current = true;
       void session.current?.abort();
+      void releaseTab();
     };
   }, []);
 
