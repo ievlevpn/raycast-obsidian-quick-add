@@ -47,7 +47,8 @@ export interface FieldSpec {
   label: string;
   kind: FieldKind;
   placeholder?: string;
-  info?: string;
+  /** QuickAdd's description of the field, shown as a line above it when it can't be the placeholder. */
+  note?: string;
   defaultValue?: string | string[] | boolean;
   options?: FieldOption[];
   allowCustom?: boolean;
@@ -63,7 +64,16 @@ export type FormValues = Record<string, unknown>;
 /** Moment formats with hours, minutes or seconds need a date-time picker. */
 const hasTime = (dateFormat: string | undefined) => /[Hhkms]/.test((dateFormat ?? "").replace(/\[[^\]]*\]/g, ""));
 
+/** QuickAdd's field description, made visible: the placeholder of an empty text field, else a note above it. */
 function fieldSpec(field: QaField): FieldSpec {
+  const spec = baseFieldSpec(field);
+  const description = field.description?.trim();
+  if (!description) return spec;
+  const typed = spec.kind === "text" || spec.kind === "textarea" || spec.kind === "number";
+  return typed && !spec.placeholder ? { ...spec, placeholder: description } : { ...spec, note: description };
+}
+
+function baseFieldSpec(field: QaField): FieldSpec {
   const options = (field.options ?? []).map((value, index) => ({
     value,
     title: field.displayOptions?.[index] ?? value,
@@ -73,7 +83,6 @@ function fieldSpec(field: QaField): FieldSpec {
     id: field.id,
     label: field.label ?? field.id,
     placeholder: field.placeholder,
-    info: field.description,
     defaultValue: field.defaultValue,
     optional: field.optional === true,
   };

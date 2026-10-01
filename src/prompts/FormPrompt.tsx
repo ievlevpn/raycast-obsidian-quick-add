@@ -42,14 +42,17 @@ export default function FormPrompt({ title, vault, specs, onSubmit, onCancel }: 
         </ActionPanel>
       }
     >
-      {specs.flatMap((spec, index) => renderField(spec, index, vault, errors[index], () => clear(index)))}
+      {specs.flatMap((spec, index) => [
+        ...(spec.note ? [<Form.Description key={`f${index}-note`} text={spec.note} />] : []),
+        ...renderField(spec, index, vault, errors[index], () => clear(index)),
+      ])}
     </Form>
   );
 }
 
 function renderField(spec: FieldSpec, index: number, vault: VaultRef, error: string | undefined, onChange: () => void) {
   const id = `f${index}`;
-  const common = { id, title: spec.label, info: spec.info, error, onChange };
+  const common = { id, title: spec.label, error, onChange };
   const text = typeof spec.defaultValue === "string" ? spec.defaultValue : undefined;
   const custom = (placeholder: string) =>
     spec.allowCustom
@@ -105,7 +108,6 @@ function renderField(spec: FieldSpec, index: number, vault: VaultRef, error: str
           key={id}
           id={id}
           label={spec.label}
-          info={spec.info}
           error={error}
           onChange={onChange}
           defaultValue={spec.defaultValue === true}

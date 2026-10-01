@@ -78,6 +78,29 @@ describe("specsFromQuickAddFields", () => {
   });
 });
 
+describe("QuickAdd field descriptions are visible, not hidden in a tooltip", () => {
+  it("uses the description as the placeholder of a text field that has none", () => {
+    const [spec] = specsFromQuickAddFields([{ id: "note name", type: "text", description: "start with a space" }]);
+    expect(spec.placeholder).toBe("start with a space");
+    expect(spec.note).toBeUndefined();
+    expect(spec).not.toHaveProperty("info");
+  });
+
+  it("shows the description as a note when the field already has a placeholder", () => {
+    const [spec] = specsFromQuickAddFields([
+      { id: "t", type: "textarea", placeholder: "A few lines", description: "Markdown is fine" },
+    ]);
+    expect(spec).toMatchObject({ placeholder: "A few lines", note: "Markdown is fine" });
+  });
+
+  it("shows the description as a note for fields without placeholders", () => {
+    for (const type of ["dropdown", "date", "checkbox"]) {
+      const [spec] = specsFromQuickAddFields([{ id: "x", type, options: ["a"], description: "Pick one" }]);
+      expect(spec.note).toBe("Pick one");
+    }
+  });
+});
+
 describe("specsForPrompt", () => {
   it("turns single prompts into one-field forms", () => {
     expect(specsForPrompt({ type: "input", header: "Title", multiline: true })).toEqual([
