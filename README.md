@@ -1,3 +1,6 @@
+> [!NOTE]
+> **Archived.** This extension is retired in favour of the official [QuickAdd for Obsidian](https://github.com/chhoumann/raycast-quickadd) Raycast extension by QuickAdd's author ([docs](https://quickadd.obsidian.guide/docs/Advanced/RaycastExtension/)). Its code stays here for reference; anything in it is free to reuse (MIT). Ideas from it are offered upstream in [chhoumann/raycast-quickadd#20](https://github.com/chhoumann/raycast-quickadd/issues/20).
+
 <p align="center">
   <img src="assets/extension-icon.png" width="96" alt="" />
 </p>
